@@ -1,0 +1,41 @@
+﻿group,rule_no,rule
+precedence,1,System safety overrides all lower layers.
+precedence,2,Entity identity errors override all content generation.
+precedence,3,Evidence validity overrides editorial optimization.
+precedence,4,Version/time conflicts override SEO and title optimization.
+precedence,5,P0 rules override P1-P4.
+precedence,6,Human veto can lock automatic publishing.
+precedence,7,Optimization can never override a hard gate.
+truth,1,A URL is not permanent evidence; preserve retrieval time and snapshot/hash.
+truth,2,Historical truth must be time-bounded.
+truth,3,A current claim cannot silently inherit an old state.
+truth,4,Truth records are versioned and auditable.
+truth,5,"Official statements establish what the official said, not automatically objective truth."
+truth,6,Multiple reposts of one original source count as one independent evidence chain.
+claims,1,Every material claim must have a Claim ID.
+claims,2,Every material claim must have evidence links.
+claims,3,Evidence scope must cover claim scope.
+claims,4,Claim strength cannot exceed evidence strength.
+claims,5,Prediction must be explicitly labeled as prediction.
+claims,6,Opinion must not be presented as fact.
+claims,7,Speculation must not be promoted to verified fact.
+numbers,1,"Every material number must carry value, unit, source, date, version, scope and method."
+numbers,2,Calculations must be reproducible.
+numbers,3,Percent and percentage points must not be confused.
+numbers,4,"Peak, average, cumulative and point-in-time values must not be conflated."
+numbers,5,Old numeric results must be revalidated when source data changes.
+causality,1,Temporal sequence is not causality.
+causality,2,Correlation is not causality.
+causality,3,Causal claims require stronger evidence than observational claims.
+causality,4,Alternative explanations must be checked for major causal claims.
+causality,5,"If causality is unsupported, language must be downgraded to observation."
+recovery,1,Source edits trigger revalidation.
+recovery,2,Source deletion triggers revalidation.
+recovery,3,Truth record changes trigger downstream content revalidation.
+recovery,4,"A corrected fact must propagate to dependent articles, scripts and posts."
+recovery,5,Every correction must preserve the previous version and reason.
+ai_firewall,1,Model memory cannot substitute for source evidence.
+ai_firewall,2,Missing fields remain UNKNOWN rather than being inferred as fact.
+ai_firewall,3,AI confidence cannot replace evidence quality.
+ai_firewall,4,Generated factual sentences require provenance.
+ai_firewall,5,The system must support ABSTAIN when evidence is insufficient.

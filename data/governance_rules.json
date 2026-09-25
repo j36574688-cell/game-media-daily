@@ -1,0 +1,56 @@
+{
+  "precedence": [
+    "System safety overrides all lower layers.",
+    "Entity identity errors override all content generation.",
+    "Evidence validity overrides editorial optimization.",
+    "Version/time conflicts override SEO and title optimization.",
+    "P0 rules override P1-P4.",
+    "Human veto can lock automatic publishing.",
+    "Optimization can never override a hard gate."
+  ],
+  "truth": [
+    "A URL is not permanent evidence; preserve retrieval time and snapshot/hash.",
+    "Historical truth must be time-bounded.",
+    "A current claim cannot silently inherit an old state.",
+    "Truth records are versioned and auditable.",
+    "Official statements establish what the official said, not automatically objective truth.",
+    "Multiple reposts of one original source count as one independent evidence chain."
+  ],
+  "claims": [
+    "Every material claim must have a Claim ID.",
+    "Every material claim must have evidence links.",
+    "Evidence scope must cover claim scope.",
+    "Claim strength cannot exceed evidence strength.",
+    "Prediction must be explicitly labeled as prediction.",
+    "Opinion must not be presented as fact.",
+    "Speculation must not be promoted to verified fact."
+  ],
+  "numbers": [
+    "Every material number must carry value, unit, source, date, version, scope and method.",
+    "Calculations must be reproducible.",
+    "Percent and percentage points must not be confused.",
+    "Peak, average, cumulative and point-in-time values must not be conflated.",
+    "Old numeric results must be revalidated when source data changes."
+  ],
+  "causality": [
+    "Temporal sequence is not causality.",
+    "Correlation is not causality.",
+    "Causal claims require stronger evidence than observational claims.",
+    "Alternative explanations must be checked for major causal claims.",
+    "If causality is unsupported, language must be downgraded to observation."
+  ],
+  "recovery": [
+    "Source edits trigger revalidation.",
+    "Source deletion triggers revalidation.",
+    "Truth record changes trigger downstream content revalidation.",
+    "A corrected fact must propagate to dependent articles, scripts and posts.",
+    "Every correction must preserve the previous version and reason."
+  ],
+  "ai_firewall": [
+    "Model memory cannot substitute for source evidence.",
+    "Missing fields remain UNKNOWN rather than being inferred as fact.",
+    "AI confidence cannot replace evidence quality.",
+    "Generated factual sentences require provenance.",
+    "The system must support ABSTAIN when evidence is insufficient."
+  ]
+}

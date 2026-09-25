@@ -1,0 +1,60 @@
+{
+  "claim": {
+    "id": "CL-xxxxx",
+    "text": "string",
+    "type": "FACT|OBSERVATION|QUOTE|OFFICIAL_CLAIM|DATA|CALCULATION|COMPARISON|INTERPRETATION|CAUSAL_INFERENCE|OPINION|SPECULATION|PREDICTION|RUMOR",
+    "status": "VERIFIED|PROBABLE|UNVERIFIED|CONFLICTED",
+    "scope": {
+      "platform": [],
+      "region": [],
+      "version": [],
+      "time_start": null,
+      "time_end": null
+    },
+    "evidence_ids": [],
+    "confidence": {
+      "evidence": 0,
+      "source": 0,
+      "data": 0,
+      "identity": 0,
+      "version": 0,
+      "time": 0,
+      "calculation": 0,
+      "interpretation": 0,
+      "causality": 0,
+      "fact": 0
+    },
+    "risk_flags": []
+  },
+  "evidence": {
+    "id": "EV-xxxxx",
+    "type": "OFFICIAL_DOCUMENT|OFFICIAL_STATEMENT|RAW_DATA|DATABASE|DIRECT_OBSERVATION|SCREENSHOT|VIDEO|PLAYER_REPORT|MEDIA_REPORT|EXPERT_ANALYSIS|LEAK|RUMOR|AI_GENERATED",
+    "source_id": "SRC-xxxxx",
+    "retrieved_at": "ISO-8601",
+    "published_at": "ISO-8601|null",
+    "content_hash": "string",
+    "evidence_level": "E0-E5",
+    "independence_score": 0,
+    "supports_claim_ids": [],
+    "contradicts_claim_ids": []
+  },
+  "truth_record": {
+    "id": "TRUTH-xxxxx",
+    "version": 1,
+    "status": "CURRENT|HISTORICAL|CONFLICTED|INVALIDATED",
+    "valid_from": "ISO-8601|null",
+    "valid_to": "ISO-8601|null",
+    "claim_ids": [],
+    "evidence_ids": [],
+    "change_log": []
+  },
+  "decision": {
+    "id": "DEC-xxxxx",
+    "status": "PUBLISH|PUBLISH_WITH_CAVEAT|EDIT_REQUIRED|HOLD|DO_NOT_PUBLISH",
+    "failed_rules": [],
+    "triggered_checks": [],
+    "unresolved_conflicts": [],
+    "human_review_required": false,
+    "reason": "string"
+  }
+}

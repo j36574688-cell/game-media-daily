@@ -1,0 +1,71 @@
+{
+  "name": "Game Media Auditor Master",
+  "version": "3.0",
+  "principle": "Fail closed: 寧可誤殺，不可誤放",
+  "layers": [
+    "Entity Engine",
+    "Source Engine",
+    "Evidence Engine",
+    "Truth Engine",
+    "Claim Engine",
+    "Conflict Engine",
+    "Risk Engine",
+    "Rule Precedence Engine",
+    "Editorial Gate",
+    "Audit / Recovery Engine"
+  ],
+  "core_states": [
+    "VERIFIED",
+    "PROBABLE",
+    "UNVERIFIED",
+    "CONFLICTED"
+  ],
+  "publish_states": [
+    "PUBLISH",
+    "PUBLISH_WITH_CAVEAT",
+    "EDIT_REQUIRED",
+    "HOLD",
+    "DO_NOT_PUBLISH"
+  ],
+  "confidence_dimensions": [
+    "Evidence Confidence",
+    "Source Confidence",
+    "Data Confidence",
+    "Identity Confidence",
+    "Version Confidence",
+    "Time Confidence",
+    "Calculation Confidence",
+    "Interpretation Confidence",
+    "Causality Confidence",
+    "Final Fact Confidence"
+  ],
+  "severity": [
+    "S0",
+    "S1",
+    "S2",
+    "S3",
+    "S4"
+  ],
+  "priority": [
+    "P0",
+    "P1",
+    "P2",
+    "P3",
+    "P4"
+  ],
+  "urgency": [
+    "U0",
+    "U1",
+    "U2",
+    "U3",
+    "U4"
+  ],
+  "impact": [
+    "I0",
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5"
+  ]
+}

@@ -1,0 +1,78 @@
+name: Extract project ZIP
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "*.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find ZIP
+        id: zip
+        run: |
+          ZIP=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
+
+          if [ -z "$ZIP" ]; then
+            echo "找不到 ZIP 檔案"
+            exit 1
+          fi
+
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "找到：$ZIP"
+
+      - name: Extract ZIP
+        run: |
+          rm -rf extracted
+          mkdir extracted
+
+          unzip -o "${{ steps.zip.outputs.zip }}" -d extracted
+
+      - name: Normalize project structure
+        run: |
+          mkdir -p final
+
+          shopt -s dotglob nullglob
+
+          ITEMS=(extracted/*)
+
+          if [ "${#ITEMS[@]}" -eq 1 ] && [ -d "${ITEMS[0]}" ]; then
+            echo "偵測到單一外層資料夾，取出其內容"
+            cp -a "${ITEMS[0]}"/. final/
+          else
+            echo "ZIP 本身就是專案根目錄"
+            cp -a extracted/. final/
+          fi
+
+      - name: Copy project files
+        run: |
+          cp -a final/. .
+
+      - name: Remove temporary files
+        run: |
+          rm -rf extracted final
+          rm -f "${{ steps.zip.outputs.zip }}"
+
+      - name: Commit extracted project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "沒有需要提交的變更"
+            exit 0
+          fi
+
+          git commit -m "Extract Game Media Daily project"
+          git push

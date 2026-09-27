@@ -45,7 +45,7 @@ export default function HomePage(){
   const [saved,setSaved]=useState<string[]>([]);
   const [watch,setWatch]=useState<string[]>(["Apex Legends","GTA","Monster Hunter","PlayStation","Xbox","PC"]);
   const [query,setQuery]=useState("");
-  const [feedQuery,setFeedQuery]=useState("video games");
+  const [feedQuery,setFeedQuery]=useState("");
   const [contentType,setContentType]=useState("全部");
   const [gameFamily,setGameFamily]=useState("全部");
   const [platforms,setPlatforms]=useState<string[]>([]);

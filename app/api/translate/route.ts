@@ -6,7 +6,7 @@ const dict:Record<string,string>={
   publisher:"發行商",launch:"推出",free:"免費",price:"價格",sale:"折扣",server:"伺服器",
   performance:"效能",review:"評測",weapon:"武器",weapons:"武器",damage:"傷害",buff:"強化",
   nerf:"削弱",ability:"技能",abilities:"技能",cooldown:"冷卻時間",ranked:"排位",
-  unconfirmed:"未經證實",confirmed:"已確認",datamined:"資料探勘"
+  unconfirmed:"未經證實",datamined:"資料探勘"
 };
 
 function translate(s:string,mode:string){

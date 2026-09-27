@@ -1,39 +1,32 @@
-# Game Media Daily — Vercel / GitHub migration starter
+# Game Media Daily
 
-這份專案是從現有 Floot 版 Editorial OS 的已知架構建立的 **Vercel + GitHub 遷移起始版**。它特別先把「Threads 貼文區 → 原文長段重點 → 單段複製／全部複製」功能做進去。
+GitHub / Vercel 可直接部署的 Next.js 版遊戲新聞編輯台。
 
-## 目前已包含
+## 功能
 
-- Next.js App Router
-- `/api/news`：多 RSS 來源、來源失敗隔離、去重、日期排序
-- `/api/article-extract`：JSON-LD / `<article>` / `<p>` 內文擷取
-- 原文重點摘錄：4 段、約 160–1200 字候選，UI 單段複製與全部複製
-- Threads 工坊：新聞／玩家／分析／數據、單篇／2–5 Thread、來源模式、偏重內容選項
-- `/api/translate`：OpenAI-compatible JSON translation adapter
-- `/api/threads`：OpenAI-compatible Threads adapter；沒有 API key 時不冒充成功
-- Audit / Sources / Settings 遷移骨架
-- `vercel.json`：每 15 分鐘新聞 Cron 起始設定
-- `.env.example`
+- 新聞雷達：RSS 聚合、去重、關鍵字搜尋、內容類型、遊戲系列、來源篩選
+- 來源中心：官方、媒體、資料追蹤來源資料庫
+- 帳號中心：個人帳號、平台帳號、Evidence Hint
+- 遊戲新聞翻譯工作台：新聞口吻／遊戲術語／貼近原文
+- Claim 審核：Scope、Causality、Rumor Gate、Evidence Gate
+- Threads 工坊：勾選新聞後生成單篇或串文草稿
+- 證據圖譜、規則矩陣、修正追蹤、系統設定
+- LocalStorage：收藏、追蹤遊戲、深色模式
+- Server-side RSS fetch，避免前端直接碰 RSS CORS
 
-## 重要限制
-
-目前無法從 Floot 直接匯出最新專案原始碼，因此這不是對 Floot 專案的逐檔 1:1 export；它是依目前已知功能與架構建立的 GitHub/Vercel migration starter。完整 1:1 遷移需要把最新 Floot source tree 帶入 GitHub。
-
-## 本機
+## 本機執行
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Vercel
+開啟 `http://localhost:3000`。
 
-設定：
+## GitHub
 
-```text
-OPENAI_API_KEY
-OPENAI_MODEL
-OPENAI_BASE_URL (optional)
-```
+把此資料夾內的所有檔案上傳到 repository 根目錄，然後在 Vercel 匯入 GitHub repository 即可部署。
 
-RSS 新聞功能不依賴 AI。AI 翻譯與 Threads 生成則需要設定 provider。
+## 注意
+
+翻譯與 Threads 目前採可離線運作的本地 fallback，因此沒有 AI API Key 也能執行。後續可把 `/app/api/translate/route.ts` 與 `/app/api/threads/route.ts` 改接你的 AI 服務。

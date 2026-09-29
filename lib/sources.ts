@@ -1,7 +1,7 @@
-export type SourceKind = "官方" | "官方 / 平台" | "官方 / 平台帳號" | "新聞媒體" | "資料/追蹤" | "社群/平台" | "個人帳號";
+export type SourceKind = "官方"|"官方 / 平台"|"官方 / 平台帳號"|"新聞媒體"|"資料/追蹤"|"社群/平台"|"個人帳號";
 export type SourceRecord = {id:string;name:string;kind:SourceKind;platform:string;region:string;focus:string[];url:string;evidenceHint:"E5"|"E4"|"E3"|"E2"|"E1";feedUrl?:string;note?:string};
 
-export const SOURCE_REGISTRY: SourceRecord[] = [
+export const SOURCE_REGISTRY:SourceRecord[]=[
 {id:"ign",name:"IGN",kind:"新聞媒體",platform:"Web / YouTube / X",region:"全球",focus:["綜合","新聞","評測","指南"],url:"https://www.ign.com/news",evidenceHint:"E4",feedUrl:"https://feeds.ign.com/ign/all"},
 {id:"gamespot",name:"GameSpot",kind:"新聞媒體",platform:"Web / YouTube / X",region:"全球",focus:["新聞","評測","指南"],url:"https://www.gamespot.com/news/",evidenceHint:"E4",feedUrl:"https://www.gamespot.com/feeds/mashup/"},
 {id:"eurogamer",name:"Eurogamer",kind:"新聞媒體",platform:"Web / YouTube",region:"歐洲",focus:["新聞","分析","評測","技術"],url:"https://www.eurogamer.net/",evidenceHint:"E4",feedUrl:"https://eurogamer.net/feed"},
@@ -11,10 +11,6 @@ export const SOURCE_REGISTRY: SourceRecord[] = [
 {id:"polygon",name:"Polygon",kind:"新聞媒體",platform:"Web / YouTube",region:"美國",focus:["新聞","文化","分析","評測"],url:"https://www.polygon.com/gaming",evidenceHint:"E4",feedUrl:"https://www.polygon.com/rss/index.xml"},
 {id:"kotaku",name:"Kotaku",kind:"新聞媒體",platform:"Web",region:"美國",focus:["新聞","社群","文化","評論"],url:"https://kotaku.com/",evidenceHint:"E3",feedUrl:"https://kotaku.com/rss"},
 {id:"vg247",name:"VG247",kind:"新聞媒體",platform:"Web",region:"英國",focus:["快訊","新聞","指南"],url:"https://www.vg247.com/",evidenceHint:"E3",feedUrl:"https://vg247.com/feed"},
-{id:"gamesradar",name:"GamesRadar+",kind:"新聞媒體",platform:"Web / YouTube",region:"英國",focus:["新聞","評測","指南","活動"],url:"https://www.gamesradar.com/games/",evidenceHint:"E3"},
-{id:"destructoid",name:"Destructoid",kind:"新聞媒體",platform:"Web",region:"全球",focus:["新聞","評測","社群"],url:"https://www.destructoid.com/",evidenceHint:"E3"},
-{id:"shacknews",name:"Shacknews",kind:"新聞媒體",platform:"Web / YouTube",region:"美國",focus:["新聞","評測","指南"],url:"https://www.shacknews.com/",evidenceHint:"E3"},
-{id:"siliconera",name:"Siliconera",kind:"新聞媒體",platform:"Web",region:"全球",focus:["日本遊戲","角色扮演","新聞"],url:"https://www.siliconera.com/",evidenceHint:"E3"},
 {id:"pushsquare",name:"Push Square",kind:"新聞媒體",platform:"Web",region:"英國",focus:["PlayStation","新聞","評測","指南"],url:"https://www.pushsquare.com/",evidenceHint:"E3"},
 {id:"purenxbox",name:"Pure Xbox",kind:"新聞媒體",platform:"Web",region:"英國",focus:["Xbox","Game Pass","新聞"],url:"https://www.purexbox.com/",evidenceHint:"E3"},
 {id:"nintendolife",name:"Nintendo Life",kind:"新聞媒體",platform:"Web / YouTube",region:"英國",focus:["Nintendo","Switch 2","新聞","評測"],url:"https://www.nintendolife.com/",evidenceHint:"E3"},
@@ -25,10 +21,6 @@ export const SOURCE_REGISTRY: SourceRecord[] = [
 {id:"arstechnica",name:"Ars Technica / Gaming",kind:"新聞媒體",platform:"Web",region:"美國",focus:["技術","平台","產業"],url:"https://arstechnica.com/gaming/",evidenceHint:"E4"},
 {id:"wccftech",name:"Wccftech Gaming",kind:"新聞媒體",platform:"Web",region:"全球",focus:["PC","硬體","新聞","消息"],url:"https://wccftech.com/gaming/",evidenceHint:"E3"},
 {id:"digitalfoundry",name:"Digital Foundry",kind:"資料/追蹤",platform:"Web / YouTube",region:"全球",focus:["技術分析","效能","畫質","主機"],url:"https://www.digitalfoundry.net/",evidenceHint:"E4"},
-{id:"gamefile",name:"Game File",kind:"新聞媒體",platform:"Newsletter / Web",region:"美國",focus:["產業","採訪","新聞","內幕"],url:"https://www.gamefile.news/",evidenceHint:"E4"},
-{id:"mobilegamer",name:"Mobilegamer.biz",kind:"新聞媒體",platform:"Web",region:"全球",focus:["Mobile","產業","商業","數據"],url:"https://mobilegamer.biz/",evidenceHint:"E4"},
-{id:"pocketgamerbiz",name:"PocketGamer.biz",kind:"新聞媒體",platform:"Web",region:"全球",focus:["Mobile","產業","商業"],url:"https://www.pocketgamer.biz/",evidenceHint:"E3"},
-{id:"gamebeeper",name:"GameBeeper",kind:"資料/追蹤",platform:"Aggregator",region:"全球",focus:["聚合","新聞","RSS"],url:"https://gamebeeper.gg/",evidenceHint:"E2",note:"聚合器，不應視為原始證據。"},
 {id:"playstationblog",name:"PlayStation Blog",kind:"官方",platform:"Web",region:"Sony",focus:["PS5","公告","更新"],url:"https://blog.playstation.com/",evidenceHint:"E5",feedUrl:"https://blog.playstation.com/feed/"},
 {id:"xboxwire",name:"Xbox Wire",kind:"官方",platform:"Web / X",region:"Microsoft",focus:["Xbox","Game Pass","公告","更新"],url:"https://news.xbox.com/en-us/",evidenceHint:"E5"},
 {id:"steamnews",name:"Steam News",kind:"官方 / 平台",platform:"Steam",region:"Valve",focus:["更新","版本","活動","商店"],url:"https://store.steampowered.com/news/",evidenceHint:"E5"},
@@ -37,10 +29,7 @@ export const SOURCE_REGISTRY: SourceRecord[] = [
 {id:"ubisoft",name:"Ubisoft News",kind:"官方",platform:"Web",region:"Ubisoft",focus:["Rainbow Six","Assassin's Creed","公告"],url:"https://news.ubisoft.com/",evidenceHint:"E5"},
 {id:"blizzard",name:"Blizzard News",kind:"官方",platform:"Web",region:"Blizzard",focus:["Overwatch","Diablo","WoW","公告"],url:"https://news.blizzard.com/",evidenceHint:"E5"},
 {id:"riot",name:"Riot Games",kind:"官方",platform:"Web",region:"Riot",focus:["League","VALORANT","公告","電競"],url:"https://www.riotgames.com/en/news",evidenceHint:"E5"},
-{id:"fortnite",name:"Fortnite News",kind:"官方",platform:"Web",region:"Epic",focus:["Fortnite","賽季","活動","更新"],url:"https://www.fortnite.com/news",evidenceHint:"E5"},
 {id:"apex",name:"Apex Legends News",kind:"官方",platform:"Web",region:"EA / Respawn",focus:["Apex","賽季","平衡","公告"],url:"https://www.ea.com/games/apex-legends/news",evidenceHint:"E5"},
-{id:"playstationstatus",name:"PlayStation Status",kind:"官方 / 平台",platform:"Web",region:"Sony",focus:["PSN","服務狀態","中斷"],url:"https://status.playstation.com/",evidenceHint:"E5"},
-{id:"xboxstatus",name:"Xbox Status",kind:"官方 / 平台",platform:"Web",region:"Microsoft",focus:["Xbox Network","服務狀態"],url:"https://support.xbox.com/xbox-live-status",evidenceHint:"E5"},
 {id:"steamdb",name:"SteamDB",kind:"資料/追蹤",platform:"Web",region:"Steam",focus:["更新","Build","價格","玩家數"],url:"https://steamdb.info/",evidenceHint:"E3"},
 {id:"steamcharts",name:"SteamCharts",kind:"資料/追蹤",platform:"Web",region:"Steam",focus:["玩家數","歷史峰值","趨勢"],url:"https://steamcharts.com/",evidenceHint:"E3"},
 {id:"steamspy",name:"Steam Spy",kind:"資料/追蹤",platform:"Web",region:"Steam",focus:["銷售估算","擁有量","數據"],url:"https://steamspy.com/",evidenceHint:"E3",note:"第三方估算，不能當官方銷售數字。"},
@@ -49,7 +38,7 @@ export const SOURCE_REGISTRY: SourceRecord[] = [
 {id:"opencritic",name:"OpenCritic",kind:"資料/追蹤",platform:"Web",region:"全球",focus:["評測聚合","評分"],url:"https://opencritic.com/",evidenceHint:"E2"}
 ];
 
-export const PERSONAL_ACCOUNTS: SourceRecord[] = [
+export const PERSONAL_ACCOUNTS:SourceRecord[]=[
 {id:"wario64",name:"Wario64",kind:"個人帳號",platform:"X / Bluesky / Threads",region:"美國",focus:["遊戲消息","商店","Deals","快訊"],url:"https://x.com/Wario64",evidenceHint:"E2"},
 {id:"billbil-kun",name:"billbil-kun",kind:"個人帳號",platform:"X / Dealabs",region:"法國",focus:["價格","預購","獨家","遊戲情報"],url:"https://x.com/billbil_kun",evidenceHint:"E2"},
 {id:"playstationsize",name:"PlayStation Game Size",kind:"個人帳號",platform:"X / YouTube",region:"全球",focus:["PS5","下載容量","版本號","預載"],url:"https://x.com/PlaystationSize",evidenceHint:"E2"},
@@ -59,7 +48,6 @@ export const PERSONAL_ACCOUNTS: SourceRecord[] = [
 {id:"jasonschreier",name:"Jason Schreier",kind:"個人帳號",platform:"Bluesky / Web",region:"美國",focus:["產業","採訪","勞動","調查"],url:"https://bsky.app/profile/jasonschreier.bsky.social",evidenceHint:"E3"},
 {id:"shpeshalnick",name:"Shpeshal Nick",kind:"個人帳號",platform:"X / Bluesky / Twitch",region:"澳洲",focus:["Xbox","PlayStation","Rumors","Podcast"],url:"https://x.com/Shpeshal_Nick",evidenceHint:"E2"},
 {id:"geoffkeighley",name:"Geoff Keighley",kind:"個人帳號",platform:"X / YouTube",region:"全球",focus:["活動","Summer Game Fest","The Game Awards","公告"],url:"https://x.com/geoffkeighley",evidenceHint:"E3"},
-{id:"stephentotilo",name:"Stephen Totilo / Game File",kind:"個人帳號",platform:"Newsletter / Web / X",region:"美國",focus:["新聞","產業","採訪"],url:"https://www.gamefile.news/",evidenceHint:"E3"},
 {id:"tomwarren",name:"Tom Warren",kind:"個人帳號",platform:"X / The Verge",region:"美國",focus:["Microsoft","Xbox","Windows","硬體"],url:"https://x.com/tomwarren",evidenceHint:"E3"},
 {id:"jezcorden",name:"Jez Corden",kind:"個人帳號",platform:"X / Windows Central",region:"英國",focus:["Xbox","Microsoft","Insider"],url:"https://x.com/JezCorden",evidenceHint:"E2"},
 {id:"shinobi602",name:"Shinobi602",kind:"個人帳號",platform:"X",region:"全球",focus:["PlayStation","Sony","遊戲開發"],url:"https://x.com/shinobi602",evidenceHint:"E2"},
@@ -72,6 +60,7 @@ export const PERSONAL_ACCOUNTS: SourceRecord[] = [
 {id:"steam",name:"Steam",kind:"官方 / 平台帳號",platform:"X / Web",region:"Valve",focus:["Steam","活動","商店","更新"],url:"https://x.com/Steam",evidenceHint:"E5"},
 {id:"igrandtheftauto",name:"iGrandTheftAuto",kind:"個人帳號",platform:"X / Web",region:"GTA 社群",focus:["GTA","網站變更","社群追蹤","消息"],url:"https://x.com/iGrandTheftAuto",evidenceHint:"E1",note:"社群追蹤帳號；發現網站變更不等於官方準備公告。"}
 ];
+
 export const ALL_SOURCE_RECORDS=[...SOURCE_REGISTRY,...PERSONAL_ACCOUNTS];
 export const RSS_SOURCES=SOURCE_REGISTRY.filter(x=>x.feedUrl);
 export const CONTENT_TYPES=["全部","快訊","爆料","官方公告","版本更新","補丁","熱修正","發售","延期","預購","價格 / Deals","DLC / 擴充","角色 / 英雄","武器 / 裝備","平衡性","伺服器 / 連線","封禁 / 制裁","收購 / 投資","工作室異動","裁員 / 勞動","開發進度","實機 / 展示","評測","攻略","數據報導","社群觀察","爭議","電競","活動 / 賽季","Steam / 商店榜","硬體 / 平台","免費遊戲 / 促銷","跨平台","獨立遊戲","日本遊戲"];

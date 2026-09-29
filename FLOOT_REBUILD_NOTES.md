@@ -1,33 +1,12 @@
-# Floot 重建紀錄
+# Floot 重建紀錄 / GitHub v2
 
-## 原專案
-- Project: Game Media Daily
-- Floot project id: dbb31713-ac45-4f22-b95b-501a56b75cb0
-- Floot version observed: 1790373476141
+原始專案：Game Media Daily
+Floot project id：dbb31713-ac45-4f22-b95b-501a56b75cb0
 
-## Floot 核心檔案已核對
-- base.css
-- pages/_index.tsx
-- pages/_index.module.css
-- helpers/sourceRegistry.tsx
-- helpers/useNewsQuery.tsx
-- helpers/useNewsTranslation.tsx
-- helpers/useThreadsDraft.tsx
-- helpers/themeMode.tsx
-- helpers/useMediaQuery.tsx
-- helpers/useScrollReveal.tsx
-- helpers/useDebounce.tsx
-- helpers/useCallbackRef.tsx
-- endpoints/news_GET.ts
-- endpoints/translate_POST.ts
-- endpoints/threads_POST.ts
-- 對應 schema
+## v2 原則
 
-## 獨立部署替換
-- Floot router / React page → Next.js App Router
-- Floot `/_api/*` → Next.js `/api/*`
-- `@floot/ai` → 可選外部 OpenAI-compatible endpoint + 本地 fallback
-- Floot seeded component library → 本版本頁面使用自包含 CSS / native controls，避免被 `@floot/*` 綁定
-
-## 目的
-讓專案能直接放進 GitHub，再由 Vercel 部署，不需要依賴 Floot runtime。
+- 保留原本的 Editorial OS 工作台結構。
+- 移除對 Floot runtime 的依賴。
+- GitHub / Vercel 版採 Next.js App Router。
+- 翻譯不使用 OpenAI API；改走免費 Google Translate 公開端點 + glossary + local fallback。
+- RSS / Atom 解析、來源健康度、穩定 ID、去重、錯誤提示與 Mobile UI 重新整理。

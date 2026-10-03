@@ -12,11 +12,16 @@ function classify(t:string){const l=t.toLowerCase();if(/leak|rumor|rumour|inside
 function guessGame(t:string){for(const g of ["Apex Legends","GTA","Fortnite","Overwatch","VALORANT","League of Legends","Counter-Strike 2","Pokémon","Monster Hunter","Final Fantasy","Resident Evil","Minecraft","Elden Ring","Xbox","PlayStation","Nintendo","Steam"]){if(t.toLowerCase().includes(g.toLowerCase()))return g;}return "自動辨識";}
 function stableId(sourceId:string,title:string,link:string){return sourceId+"-"+createHash("sha1").update(sourceId+"\n"+link+"\n"+title).digest("hex").slice(0,16);}
 function parse(xml:string,sourceName:string,sourceId:string){
+  // 同時支援 RSS 2.0 與 Atom；部分媒體（包含新版 IGN）會混用命名空間。
   const chunks=xml.match(/<(?:item|entry)\b[\s\S]*?<\/(?:item|entry)>/gi)||[];
   const evidence=RSS_SOURCES.find(s=>s.id===sourceId)?.evidenceHint||"E3";
   return chunks.map(x=>{
     const title=strip(firstMatch(x,[/<title[^>]*>([\s\S]*?)<\/title>/i]));
-    const link=strip(firstMatch(x,[/<link[^>]+href=["']([^"']+)["'][^>]*\/?/i,/<link[^>]*>([\s\S]*?)<\/link>/i,/<guid[^>]*>([\s\S]*?)<\/guid>/i]));
+    const link=strip(firstMatch(x,[
+      /<link[^>]+href=["']([^"']+)["'][^>]*\/?/i,
+      /<link[^>]*>([\s\S]*?)<\/link>/i,
+      /<guid[^>]*>([\s\S]*?)<\/guid>/i
+    ]));
     const publishedAt=strip(firstMatch(x,[/<(?:pubDate|published|updated|dc:date)[^>]*>([\s\S]*?)<\/(?:pubDate|published|updated|dc:date)>/i]));
     const excerpt=strip(firstMatch(x,[/<description[^>]*>([\s\S]*?)<\/description>/i,/<summary[^>]*>([\s\S]*?)<\/summary>/i,/<content:encoded[^>]*>([\s\S]*?)<\/content:encoded>/i,/<content[^>]*>([\s\S]*?)<\/content>/i])).slice(0,280);
     return {id:stableId(sourceId,title,link),title,link,source:sourceName,sourceId,publishedAt,excerpt,kind:classify(title),game:guessGame(title),evidence};
@@ -33,7 +38,15 @@ export async function GET(req:NextRequest){
   const results=await Promise.allSettled(feeds.map(async s=>{
     const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),6000);
     try{
-      const r=await fetch(s.feedUrl!,{headers:{accept:"application/rss+xml, application/atom+xml, application/xml, text/xml, */*"},next:{revalidate:60},signal:controller.signal});
+      const r=await fetch(s.feedUrl!,{
+        headers:{
+          accept:"application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+          "user-agent":"Game-Media-Daily/1.0 (+https://game-media-daily-web.vercel.app)"
+        },
+        redirect:"follow",
+        next:{revalidate:60},
+        signal:controller.signal
+      });
       if(!r.ok)throw new Error("HTTP "+r.status);
       const parsed=parse(await r.text(),s.name,s.id).slice(0,20);
       if(!parsed.length)throw new Error("RSS / Atom 無可解析項目");

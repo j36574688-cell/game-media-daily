@@ -2,7 +2,7 @@ export type SourceKind = "官方"|"官方 / 平台"|"官方 / 平台帳號"|"新
 export type SourceRecord = {id:string;name:string;kind:SourceKind;platform:string;region:string;focus:string[];url:string;evidenceHint:"E5"|"E4"|"E3"|"E2"|"E1";feedUrl?:string;note?:string};
 
 export const SOURCE_REGISTRY:SourceRecord[]=[
-{id:"ign",name:"IGN",kind:"新聞媒體",platform:"Web / YouTube / X",region:"全球",focus:["綜合","新聞","評測","指南"],url:"https://www.ign.com/news",evidenceHint:"E4",feedUrl:"https://feeds.ign.com/ign/all"},
+{id:"ign",name:"IGN",kind:"新聞媒體",platform:"Web / YouTube / X",region:"全球",focus:["綜合","新聞","評測","指南"],url:"https://www.ign.com/news",evidenceHint:"E4",feedUrl:"https://www.ign.com/rss/v2/articles/feed"},
 {id:"gamespot",name:"GameSpot",kind:"新聞媒體",platform:"Web / YouTube / X",region:"全球",focus:["新聞","評測","指南"],url:"https://www.gamespot.com/news/",evidenceHint:"E4",feedUrl:"https://www.gamespot.com/feeds/mashup/"},
 {id:"eurogamer",name:"Eurogamer",kind:"新聞媒體",platform:"Web / YouTube",region:"歐洲",focus:["新聞","分析","評測","技術"],url:"https://www.eurogamer.net/",evidenceHint:"E4",feedUrl:"https://eurogamer.net/feed"},
 {id:"gematsu",name:"Gematsu",kind:"新聞媒體",platform:"Web / X",region:"日本 / 亞洲",focus:["日本遊戲","發售","公告","消息"],url:"https://www.gematsu.com/",evidenceHint:"E4",feedUrl:"https://gematsu.com/feed"},

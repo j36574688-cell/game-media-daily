@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, Bookmark, Bot, BrainCircuit, CheckCircle2, CircleAlert, Clipboard, Crosshair, Database,
   Download, ExternalLink, Gauge, Globe2, ListChecks, Plus, Radar, RefreshCw, Rss, Search, Settings2,
-  ShieldCheck, Sparkles, Star, Trash2, Upload, Users2, XCircle
+  Send, ShieldCheck, Sparkles, Star, Trash2, Upload, Users2, XCircle
 } from "lucide-react";
 import { ALL_SOURCE_RECORDS, EVIDENCE_LABELS, GAME_FAMILIES, LANGUAGE_LEVELS, PERSONAL_ACCOUNTS, PLATFORMS, RSS_SOURCES, SOURCE_REGISTRY } from "@/lib/sources";
 import { ARTICLE_KINDS, charLength, matchesGame, matchesPlatform } from "@/lib/classify";
 import { GLOSSARY } from "@/lib/glossary";
-import { buildThreadPosts, THREADS_LIMIT } from "@/lib/threads";
+import { buildThreadPosts, THREADS_LIMIT, type PostTemplate } from "@/lib/threads";
 import { assessClaim, CONTENT_GATES, DECISION_LABEL, detectSignals, type Decision } from "@/lib/audit";
 import { isStringArray, loadJSON, saveJSON, trimRecord } from "@/lib/storage";
 import type { Article, DraftSettings, SourceStat, TranslationEntry } from "@/lib/types";
@@ -30,6 +30,10 @@ const TR_CACHE_LIMIT = 600;
 const AUTO_TRANSLATE_LIMIT = 60; // 每次最多自動翻譯目前清單前 60 則，其他按需翻譯
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const DEFAULT_WATCH = ["Apex Legends", "GTA", "Monster Hunter", "PlayStation", "Xbox", "Nintendo"];
+const DEFAULT_TEMPLATES: PostTemplate[] = [
+  { id: "daily", name: "每日快報", opening: "🎮 今日遊戲快報", closing: "你怎麼看？留言聊聊 👇" },
+];
+const THREADS_INTENT = "https://www.threads.com/intent/post?text=";
 const DEFAULT_DRAFT: DraftSettings = { style: "news", format: "single", focus: "balanced", hashtags: true };
 const EMPTY_HEALTH: FeedHealth = { loaded: false, feedCount: RSS_SOURCES.length, successfulSources: 0, failedSources: [], sourceStats: [], fetched: 0, duplicatesRemoved: 0, generatedAt: "" };
 const AUDIT_TYPES = Array.from(new Set([...ARTICLE_KINDS.filter((x) => x !== "全部"), ...Object.keys(CONTENT_GATES)]));
@@ -155,6 +159,9 @@ export default function HomePage() {
   const [drafts, setDrafts] = useState<string[]>([]);
   const [draftIndex, setDraftIndex] = useState(0);
   const [myView, setMyView] = useState("");
+  const [templates, setTemplates] = useState<PostTemplate[]>(DEFAULT_TEMPLATES);
+  const [templateId, setTemplateId] = useState("");
+  const [editingTemplates, setEditingTemplates] = useState(false);
   const [draftSettings, setDraftSettings] = useState<DraftSettings>(DEFAULT_DRAFT);
   const [copied, setCopied] = useState("");
 
@@ -186,6 +193,8 @@ export default function HomePage() {
     if (x.translateMode === "news" || x.translateMode === "game" || x.translateMode === "literal") setTranslateMode(x.translateMode);
     if (typeof x.autoRefresh === "boolean") setAutoRefresh(x.autoRefresh);
     if (x.sortBy === "latest" || x.sortBy === "heat") setSortBy(x.sortBy);
+    if (Array.isArray(x.templates)) setTemplates((x.templates as PostTemplate[]).filter((t) => t && typeof t.id === "string" && typeof t.name === "string").map((t) => ({ id: t.id, name: t.name, opening: String(t.opening || ""), closing: String(t.closing || "") })).slice(0, 20));
+    if (typeof x.templateId === "string") setTemplateId(x.templateId);
     if (typeof x.onlyNew === "boolean") setOnlyNew(x.onlyNew);
     if (x.langFilter === "all" || x.langFilter === "zh" || x.langFilter === "en" || x.langFilter === "ja") setLangFilter(x.langFilter);
     const d = x.draftSettings as Partial<DraftSettings> | undefined;
@@ -211,8 +220,8 @@ export default function HomePage() {
   }, [applyState]);
 
   const persisted = useMemo(
-    () => ({ version: 3, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings, sortBy, onlyNew, langFilter }),
-    [langFilter, sortBy, onlyNew, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
+    () => ({ version: 3, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings, sortBy, onlyNew, langFilter, templates, templateId }),
+    [templates, templateId, langFilter, sortBy, onlyNew, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
   );
   useEffect(() => { if (hydrated) saveJSON(STATE_KEY, persisted); }, [hydrated, persisted]);
   useEffect(() => { if (hydrated) saveJSON(TR_KEY, trimRecord(trCache, TR_CACHE_LIMIT)); }, [hydrated, trCache]);
@@ -459,7 +468,8 @@ export default function HomePage() {
     const posts = buildThreadPosts(
       selectedArticles.map((n) => ({ title: tr(n.id)?.title || n.title, excerpt: tr(n.id)?.excerpt || n.excerpt, source: n.source, link: n.link, game: n.game })),
       draftSettings,
-      myView
+      myView,
+      templates.find((t) => t.id === templateId) || null
     );
     setDrafts(posts);
     setDraftIndex(0);
@@ -966,6 +976,29 @@ export default function HomePage() {
                 <label className="label" style={{ marginTop: 10 }}>我的看法（選填）</label>
                 <textarea className="textarea opinion" value={myView} onChange={(e) => setMyView(e.target.value)} placeholder="寫你的觀察；會明確標示為「我的看法」，跟來源事實分開。" />
                 <label className="checkLine"><input type="checkbox" checked={draftSettings.hashtags} onChange={(e) => setDraftSettings((s) => ({ ...s, hashtags: e.target.checked }))} />加上遊戲 hashtag（辨識不出遊戲就不加）</label>
+                <div className="templateRow">
+                  <label className="label">貼文範本</label>
+                  <div className="toolrow" style={{ marginTop: 0 }}>
+                    <select className="select" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+                      <option value="">不使用範本</option>
+                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <button className="btn ghost" onClick={() => setEditingTemplates((v) => !v)}>{editingTemplates ? "完成" : "管理範本"}</button>
+                  </div>
+                  {editingTemplates && (
+                    <div className="templateEditor">
+                      {templates.map((t) => (
+                        <div className="templateItem" key={t.id}>
+                          <input className="input" value={t.name} onChange={(e) => setTemplates((p) => p.map((x) => (x.id === t.id ? { ...x, name: e.target.value } : x)))} placeholder="範本名稱" />
+                          <textarea className="textarea small" value={t.opening} onChange={(e) => setTemplates((p) => p.map((x) => (x.id === t.id ? { ...x, opening: e.target.value } : x)))} placeholder="開頭（放在每則最前面；串文只放第一則）" />
+                          <textarea className="textarea small" value={t.closing} onChange={(e) => setTemplates((p) => p.map((x) => (x.id === t.id ? { ...x, closing: e.target.value } : x)))} placeholder="結尾（例如提問、簽名；串文只放最後一則）" />
+                          <button className="btn ghost" onClick={() => { setTemplates((p) => p.filter((x) => x.id !== t.id)); if (templateId === t.id) setTemplateId(""); }}><Trash2 size={13} />刪除</button>
+                        </div>
+                      ))}
+                      <button className="btn" disabled={templates.length >= 20} onClick={() => { const id = "t" + Date.now().toString(36); setTemplates((p) => [...p, { id, name: "新範本", opening: "", closing: "" }]); setTemplateId(id); }}><Plus size={13} />新增範本</button>
+                    </div>
+                  )}
+                </div>
                 <button className="btn primary full" disabled={!selectedArticles.length} onClick={generateThreads}><Sparkles size={15} />生成 / 重新生成</button>
               </section>
             </div>
@@ -985,9 +1018,11 @@ export default function HomePage() {
                   <div className="draftMeta">
                     <span className={`badge ${charLength(drafts[draftIndex] || "") > THREADS_LIMIT ? "bad" : "good"}`}>{charLength(drafts[draftIndex] || "")}/{THREADS_LIMIT}</span>
                     {unreviewedSelected > 0 && <span className="badge warn">尚有 {unreviewedSelected} 則譯文待人工校對</span>}
+                    {draftSettings.format === "thread" && drafts.length > 1 && <span className="smallMuted">串文：先發第 1 則，之後在 Threads 對自己的貼文按「回覆」，再回來按「下一則」→ 複製貼上。</span>}
                   </div>
                   <textarea className="textarea" rows={14} value={drafts[draftIndex] || ""} onChange={(e) => setDrafts((p) => p.map((x, i) => (i === draftIndex ? e.target.value : x)))} />
                   <div className="toolrow">
+                    <a className="btn primary" href={THREADS_INTENT + encodeURIComponent(drafts[draftIndex] || "")} target="_blank" rel="noopener noreferrer"><Send size={13} />在 Threads 發這則</a>
                     <button className="btn" onClick={() => void copy(drafts[draftIndex] || "", "one")}><Clipboard size={13} />{copied === "one" ? "已複製" : "複製這則"}</button>
                     {drafts.length > 1 && <button className="btn" onClick={() => void copy(drafts.join("\n\n---\n\n"), "all")}><Clipboard size={13} />{copied === "all" ? "已複製" : "複製全部"}</button>}
                   </div>

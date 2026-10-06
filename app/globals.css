@@ -59,3 +59,9 @@
 .related a{display:block;padding:5px 0 0 10px;line-height:1.45}
 .related a b{color:var(--accent);margin-right:6px;font-weight:700}
 .related a:hover{color:var(--text)}
+
+/* ---- v4: 貼文範本 ---- */
+.templateRow{margin-top:12px}
+.templateEditor{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.templateItem{display:grid;gap:6px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.textarea.small{min-height:60px}

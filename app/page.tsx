@@ -25,6 +25,7 @@ type FeedHealth = { loaded: boolean; feedCount: number; successfulSources: numbe
 const STATE_KEY = "gmd-state";
 const TR_KEY = "gmd-translations-v4";
 const REVIEW_KEY = "gmd-reviewed-v4";
+const READ_KEY = "gmd-read-v1";
 const TR_CACHE_LIMIT = 600;
 const AUTO_TRANSLATE_LIMIT = 60; // 每次最多自動翻譯目前清單前 60 則，其他按需翻譯
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
@@ -82,6 +83,9 @@ function trKey(id: string, mode: TranslateMode, sig: string) {
   // 簽章只取長度＋前 40 字，避免 key 過長；術語有變就會產生新 key
   return id + "|" + mode + "|" + sig.length + ":" + sig.slice(0, 40);
 }
+function articleLinks(n: Article): string[] {
+  return [n.link, ...(n.related || []).map((r) => r.link)];
+}
 function articleText(n: Article) {
   return n.title + " " + n.excerpt + " " + n.game;
 }
@@ -114,6 +118,11 @@ export default function HomePage() {
   const [sourceFilter, setSourceFilter] = useState("全部");
   const [onlyWatched, setOnlyWatched] = useState(false);
   const [onlySaved, setOnlySaved] = useState(false);
+  const [onlyNew, setOnlyNew] = useState(false);
+  const [sortBy, setSortBy] = useState<"latest" | "heat">("latest");
+  // NEW 標記：seenLinks = 看過的連結；unreadLinks = 上次「全部已讀」之後才出現的連結
+  const [seenLinks, setSeenLinks] = useState<string[]>([]);
+  const [unreadLinks, setUnreadLinks] = useState<string[]>([]);
   const [watch, setWatch] = useState<string[]>(DEFAULT_WATCH);
 
   // 收藏、帳號關注
@@ -175,6 +184,8 @@ export default function HomePage() {
     if (typeof x.myView === "string") setMyView(x.myView);
     if (x.translateMode === "news" || x.translateMode === "game" || x.translateMode === "literal") setTranslateMode(x.translateMode);
     if (typeof x.autoRefresh === "boolean") setAutoRefresh(x.autoRefresh);
+    if (x.sortBy === "latest" || x.sortBy === "heat") setSortBy(x.sortBy);
+    if (typeof x.onlyNew === "boolean") setOnlyNew(x.onlyNew);
     const d = x.draftSettings as Partial<DraftSettings> | undefined;
     if (d && typeof d === "object") {
       setDraftSettings({
@@ -189,18 +200,22 @@ export default function HomePage() {
   useEffect(() => {
     applyState(loadJSON<Record<string, unknown>>(STATE_KEY, {}));
     setTrCache(loadJSON<Record<string, TranslationEntry>>(TR_KEY, {}));
+    const rd = loadJSON<{ seen?: unknown; unread?: unknown }>(READ_KEY, {});
+    if (isStringArray(rd.seen)) setSeenLinks(rd.seen.slice(-4000));
+    if (isStringArray(rd.unread)) setUnreadLinks(rd.unread.slice(-1500));
     const r = loadJSON<unknown>(REVIEW_KEY, []);
     if (isStringArray(r)) setReviewed(r.slice(-1000));
     setHydrated(true);
   }, [applyState]);
 
   const persisted = useMemo(
-    () => ({ version: 3, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings }),
-    [watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
+    () => ({ version: 3, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings, sortBy, onlyNew }),
+    [sortBy, onlyNew, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
   );
   useEffect(() => { if (hydrated) saveJSON(STATE_KEY, persisted); }, [hydrated, persisted]);
   useEffect(() => { if (hydrated) saveJSON(TR_KEY, trimRecord(trCache, TR_CACHE_LIMIT)); }, [hydrated, trCache]);
   useEffect(() => { if (hydrated) saveJSON(REVIEW_KEY, reviewed.slice(-1000)); }, [hydrated, reviewed]);
+  useEffect(() => { if (hydrated) saveJSON(READ_KEY, { seen: seenLinks.slice(-4000), unread: unreadLinks.slice(-1500) }); }, [hydrated, seenLinks, unreadLinks]);
 
   // ---------- 抓新聞
   const refreshNews = useCallback(async () => {
@@ -216,6 +231,16 @@ export default function HomePage() {
       if (!r.ok) throw new Error(d?.error || "新聞來源更新失敗");
       const articles: Article[] = Array.isArray(d.articles) ? d.articles : [];
       setNews(articles);
+      // 標記 NEW：第一次使用時全部當作看過（不然 100 則全是 NEW）；之後只有沒看過的連結算 NEW
+      const links = articles.flatMap(articleLinks);
+      setSeenLinks((seen) => {
+        const seenSet = new Set(seen);
+        if (seen.length) {
+          const fresh = links.filter((l) => !seenSet.has(l));
+          if (fresh.length) setUnreadLinks((u) => Array.from(new Set([...u, ...fresh])).slice(-1500));
+        }
+        return Array.from(new Set([...seen, ...links])).slice(-4000);
+      });
       const failed: string[] = Array.isArray(d.failedSources) ? d.failedSources : [];
       setHealth({
         loaded: true,
@@ -228,7 +253,7 @@ export default function HomePage() {
         generatedAt: String(d.generatedAt || "")
       });
       setNotice(
-        "已取得 " + articles.length + " 則（去除重複 " + Number(d.duplicatesRemoved || 0) + " 則）；" +
+        "已取得 " + articles.length + " 則（去除重複 " + Number(d.duplicatesRemoved || 0) + " 則、合併多家報導 " + Number(d.mergedStories || 0) + " 則）；" +
           (failed.length ? failed.length + " 個來源失敗：" + failed.join("、") : (d.successfulSources || 0) + "/" + (d.feedCount || 0) + " 個 Feed 正常。")
       );
     } catch (e) {
@@ -268,9 +293,17 @@ export default function HomePage() {
     return [...savedArticles].reverse();
   }, [news, onlySaved, savedArticles]);
 
+  const unreadSet = useMemo(() => new Set(unreadLinks), [unreadLinks]);
+  const isNew = useCallback((n: Article) => articleLinks(n).some((l) => unreadSet.has(l)), [unreadSet]);
+  const newCount = useMemo(() => news.filter(isNew).length, [news, isNew]);
+  function markRead(n: Article) {
+    const ls = new Set(articleLinks(n));
+    setUnreadLinks((u) => u.filter((l) => !ls.has(l)));
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return pool.filter((n) => {
+    const list = pool.filter((n) => {
       const text = articleText(n);
       const tr = trCache[trKey(n.id, translateMode, sig)];
       const searchable = (text + " " + n.source + " " + (tr ? tr.title + " " + tr.excerpt : "")).toLowerCase();
@@ -279,10 +312,15 @@ export default function HomePage() {
       if (gameFamily !== "全部" && !matchesFamily(n, gameFamily)) return false;
       if (platforms.length && !platforms.some((p) => matchesPlatform(text, p))) return false;
       if (onlyWatched && !watch.some((w) => matchesFamily(n, w))) return false;
-      if (sourceFilter !== "全部" && n.sourceId !== sourceFilter) return false;
+      if (sourceFilter !== "全部" && n.sourceId !== sourceFilter && !(n.related || []).some((r) => r.sourceId === sourceFilter)) return false;
+      if (onlyNew && !articleLinks(n).some((l) => unreadSet.has(l))) return false;
       return true;
     });
-  }, [pool, query, contentType, gameFamily, platforms, onlyWatched, watch, sourceFilter, trCache, translateMode, sig]);
+    if (sortBy === "heat") {
+      list.sort((a, b) => (b.coverage || 1) - (a.coverage || 1) || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0));
+    }
+    return list;
+  }, [pool, query, contentType, gameFamily, platforms, onlyWatched, watch, sourceFilter, trCache, translateMode, sig, onlyNew, unreadSet, sortBy]);
 
   const savedIds = useMemo(() => new Set(savedArticles.map((a) => a.id)), [savedArticles]);
   const tr = useCallback((id: string) => trCache[trKey(id, translateMode, sig)], [trCache, translateMode, sig]);
@@ -485,6 +523,10 @@ export default function HomePage() {
     return [...list].sort((a, b) => Number(followed.includes(b.id)) - Number(followed.includes(a.id)));
   }, [followed, onlyFollowed]);
   const topStories = filtered.slice(0, 6);
+  const hotStories = useMemo(
+    () => news.filter((n) => (n.coverage || 1) >= 2).sort((a, b) => (b.coverage || 1) - (a.coverage || 1) || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0)).slice(0, 6),
+    [news]
+  );
   const riskCount = audits.filter((a) => a.decision === "EDIT_REQUIRED" || a.decision === "FAST_UNVERIFIED").length;
   const translatedCount = filtered.filter((n) => tr(n.id)).length;
   const statusText = loading ? "更新中…" : health.loaded ? "更新於 " + taipeiTime(health.generatedAt) : "尚未載入";
@@ -506,7 +548,7 @@ export default function HomePage() {
           {NAV.map(([id, label, sub, Icon]) => (
             <button key={id} className={section === id ? "navItem navItemActive" : "navItem"} onClick={() => setSection(id)} title={label}>
               <Icon size={17} />
-              <span><strong>{label}</strong><small>{sub}</small></span>
+              <span><strong>{label}{id === "news" && newCount > 0 && <em className="navBadge">{newCount}</em>}</strong><small>{sub}</small></span>
             </button>
           ))}
         </nav>
@@ -573,8 +615,8 @@ export default function HomePage() {
                   <article className="storyRow" key={n.id}>
                     <div className="storyIndex">{String(i + 1).padStart(2, "0")}</div>
                     <div>
-                      <div className="rowMeta"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span></div>
-                      <h3><a href={n.link} target="_blank" rel="noopener noreferrer">{tr(n.id)?.title || n.title}</a></h3>
+                      <div className="rowMeta"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span>{isNew(n) && <span className="badge new">NEW</span>}{(n.coverage || 1) >= 2 && <span className="badge hot">🔥 {n.coverage} 家</span>}</div>
+                      <h3><a href={n.link} target="_blank" rel="noopener noreferrer" onClick={() => markRead(n)}>{tr(n.id)?.title || n.title}</a></h3>
                       <div className="storyTags"><span>{n.kind}</span>{n.game && <span>{n.game}</span>}</div>
                     </div>
                   </article>
@@ -599,10 +641,17 @@ export default function HomePage() {
               </section>
 
               <section className="panel">
-                <div className="panelHeader"><div><span className="sectionKicker">WORKFLOW</span><h2>發布前檢查</h2></div><ShieldCheck size={17} /></div>
-                {["來源身份與 Evidence 等級", "版本號 / 日期是否明確", "Scope：有沒有「所有玩家」這類說法", "因果敘述是否有資料支持", "翻譯已人工校對", "附上原文連結"].map((x) => (
-                  <div className="checkRow" key={x}><CheckCircle2 size={14} /><span>{x}</span><b>人工</b></div>
-                ))}
+                <div className="panelHeader"><div><span className="sectionKicker">HOT</span><h2>熱門事件</h2></div><button className="btn ghost" onClick={() => { setSortBy("heat"); setSection("news"); }}>依熱度看 →</button></div>
+                {hotStories.length ? hotStories.map((n) => (
+                  <article className="storyRow" key={n.id}>
+                    <div className="storyIndex heat">🔥{n.coverage}</div>
+                    <div>
+                      <div className="rowMeta"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span>{isNew(n) && <span className="badge new">NEW</span>}</div>
+                      <h3><a href={n.link} target="_blank" rel="noopener noreferrer" onClick={() => markRead(n)}>{tr(n.id)?.title || n.title}</a></h3>
+                      <div className="storyTags"><span>{n.coverage} 家報導</span>{n.game && <span>{n.game}</span>}</div>
+                    </div>
+                  </article>
+                )) : <div className="empty"><Rss size={20} /><div><strong>{health.loaded ? "目前沒有多家媒體同時報導的事件" : "載入新聞後顯示"}</strong><span>同一件事被 2 家以上媒體報導時會出現在這裡。</span></div></div>}
               </section>
             </div>
           </div>
@@ -626,6 +675,10 @@ export default function HomePage() {
               <div className="toolrow">
                 <label className="checkLine"><input type="checkbox" checked={onlyWatched} onChange={(e) => setOnlyWatched(e.target.checked)} />只看追蹤遊戲</label>
                 <label className="checkLine"><input type="checkbox" checked={onlySaved} onChange={(e) => setOnlySaved(e.target.checked)} />只看收藏（{savedArticles.length}）</label>
+                <label className="checkLine"><input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} />只看 NEW（{newCount}）</label>
+                {newCount > 0 && <button className="btn ghost" onClick={() => setUnreadLinks([])}><CheckCircle2 size={13} />全部標為已讀</button>}
+                <span className="controlLabel">排序</span>
+                <select className="select modeSelect" value={sortBy} onChange={(e) => setSortBy(e.target.value as "latest" | "heat")}><option value="latest">最新</option><option value="heat">熱度（多家報導）</option></select>
                 <span className="controlLabel">翻譯用詞</span>
                 <select className="select modeSelect" value={translateMode} onChange={(e) => setTranslateMode(e.target.value as TranslateMode)}>{(Object.keys(MODE_LABEL) as TranslateMode[]).map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}</select>
                 <button className="btn ghost" disabled={!filtered.length} onClick={() => { setFailedIds([]); void translateItems(filtered.slice(0, 20), true); }}><Sparkles size={13} />重翻前 20 則</button>
@@ -655,12 +708,18 @@ export default function HomePage() {
                   return (
                     <article className={chosen ? "newsCard selected" : "newsCard"} key={n.id}>
                       <label className="newsSelect"><input type="checkbox" checked={chosen} disabled={!chosen && selected.length >= 8} onChange={() => toggleList(setSelected, n.id)} /><span>加入 Threads</span></label>
-                      <div className="newsTop"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span></div>
+                      <div className="newsTop"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span>{isNew(n) && <span className="badge new">NEW</span>}{(n.coverage || 1) >= 2 && <span className="badge hot">🔥 {n.coverage} 家報導</span>}</div>
                       <h3>{t?.title || n.title}</h3>
                       {t && <div className="origTitle">{n.title}</div>}
                       {t && <div className={isReviewed(n.id) ? "aiLabel" : "aiLabel aiPending"}><Sparkles size={11} />{t.engine === "gemini" ? "Gemini" : "Google"} · {MODE_LABEL[translateMode]} · {isReviewed(n.id) ? "已人工校對" : "待人工校對"}</div>}
                       {failed && <div className="aiLabel aiFailed"><CircleAlert size={11} />翻譯失敗，顯示原文</div>}
                       <p>{t?.excerpt || n.excerpt || "無摘要；開啟原文閱讀完整內容。"}</p>
+                      {(n.related || []).length > 0 && (
+                        <details className="related">
+                          <summary>另外 {n.related!.length} 篇報導：{Array.from(new Set(n.related!.map((r) => r.source))).join("、")}</summary>
+                          {n.related!.map((r) => <a key={r.link} href={r.link} target="_blank" rel="noopener noreferrer" onClick={() => markRead(n)}><b>{r.source}</b>{r.title}</a>)}
+                        </details>
+                      )}
                       <div className="newsBottom">
                         <div className="storyTags"><span>{n.kind}</span>{n.game && <span>{n.game}</span>}</div>
                         <div className="rowButtons">
@@ -670,7 +729,7 @@ export default function HomePage() {
                           ) : (
                             <button className="btn ghost" onClick={() => { setFailedIds((p) => p.filter((x) => x !== n.id)); void translateItems([n], true); }}><Sparkles size={13} />{failed ? "重試翻譯" : "翻譯"}</button>
                           )}
-                          <a className="btn ghost" href={n.link} target="_blank" rel="noopener noreferrer"><ExternalLink size={13} />原文</a>
+                          <a className="btn ghost" href={n.link} target="_blank" rel="noopener noreferrer" onClick={() => markRead(n)}><ExternalLink size={13} />原文</a>
                           <button className="btn" onClick={() => { setAuditText(t?.title || n.title); setAuditType(n.kind); setSection("audit"); }}><ShieldCheck size={13} />Claim</button>
                         </div>
                       </div>

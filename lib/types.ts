@@ -9,7 +9,15 @@ export type Article = {
   kind: string;
   game: string;
   evidence: string;
+  /** 原文語言：zh 不需翻譯；ja / en 需要 */
+  lang?: "en" | "zh" | "ja";
+  /** 有幾家不同媒體報導同一件事（含自己）；1 代表只有這一家 */
+  coverage?: number;
+  /** 其他媒體對同一件事的報導 */
+  related?: RelatedItem[];
 };
+
+export type RelatedItem = { source: string; sourceId: string; title: string; link: string; publishedAt: string };
 
 export type SourceStat = {
   id: string;

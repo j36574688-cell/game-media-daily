@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { RSS_SOURCES, type SourceRecord } from "@/lib/sources";
 import { classify, guessGame, toPlainText } from "@/lib/classify";
-import { dedupe } from "@/lib/dedupe";
+import { clusterCoverage, dedupe } from "@/lib/dedupe";
 import type { Article, SourceStat } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -133,13 +133,17 @@ export async function GET(req: NextRequest) {
     .filter((a) => !q || (a.title + " " + a.excerpt + " " + a.source).toLowerCase().includes(q));
   raw.sort((a, b) => (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0));
   const unique = dedupe(raw);
-  const articles = unique.slice(0, TOTAL_LIMIT);
+  // 不同媒體報導同一件事 → 合併成一張卡片並記錄熱度
+  const clustered = clusterCoverage(unique);
+  clustered.sort((a, b) => (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0));
+  const articles = clustered.slice(0, TOTAL_LIMIT);
 
   return NextResponse.json(
     {
       articles,
       fetched: articles.length,
       duplicatesRemoved: raw.length - unique.length,
+      mergedStories: unique.length - clustered.length,
       sourceCount: feeds.length,
       feedCount: feeds.length,
       successfulSources: sourceStats.filter((x) => x.status === "ok").length,

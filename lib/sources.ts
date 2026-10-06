@@ -1,7 +1,9 @@
 export type SourceKind = "官方"|"官方 / 平台"|"官方 / 平台帳號"|"新聞媒體"|"資料/追蹤"|"社群/平台"|"個人帳號";
 export type SourceRecord = {id:string;name:string;kind:SourceKind;platform:string;region:string;focus:string[];url:string;evidenceHint:"E5"|"E4"|"E3"|"E2"|"E1";feedUrl?:string;note?:string;
   /** 這個 Feed 固定只報導某款遊戲時填寫（例如 Steam 單一遊戲新聞），名稱需對應 GAME_FAMILIES */
-  game?:string};
+  game?:string;
+  /** Feed 文章的語言；未填代表英文。zh 不需翻譯。 */
+  lang?:"en"|"zh"|"ja"};
 
 export const SOURCE_REGISTRY:SourceRecord[]=[
 {id:"ign",name:"IGN",kind:"新聞媒體",platform:"Web / YouTube / X",region:"全球",focus:["綜合","新聞","評測","指南"],url:"https://www.ign.com/news",evidenceHint:"E4",feedUrl:"https://www.ign.com/rss/v2/articles/feed"},
@@ -22,6 +24,9 @@ export const SOURCE_REGISTRY:SourceRecord[]=[
 {id:"theverge",name:"The Verge / Games",kind:"新聞媒體",platform:"Web",region:"美國",focus:["平台","硬體","產業","遊戲"],url:"https://www.theverge.com/games",evidenceHint:"E4",feedUrl:"https://www.theverge.com/rss/games/index.xml"},
 {id:"arstechnica",name:"Ars Technica / Gaming",kind:"新聞媒體",platform:"Web",region:"美國",focus:["技術","平台","產業"],url:"https://arstechnica.com/gaming/",evidenceHint:"E4",feedUrl:"https://feeds.arstechnica.com/arstechnica/gaming"},
 {id:"wccftech",name:"Wccftech Gaming",kind:"新聞媒體",platform:"Web",region:"全球",focus:["PC","硬體","新聞","消息"],url:"https://wccftech.com/gaming/",evidenceHint:"E3",feedUrl:"https://wccftech.com/topic/games/feed/"},
+{id:"gnn",name:"巴哈姆特 GNN",kind:"新聞媒體",platform:"Web",region:"台灣",focus:["台灣","綜合","新聞","手遊"],url:"https://gnn.gamer.com.tw/",evidenceHint:"E4",feedUrl:"https://gnn.gamer.com.tw/rss.xml",lang:"zh",note:"台灣最大遊戲媒體；中文原文不需翻譯。"},
+{id:"4gamer-jp",name:"4Gamer.net（日本）",kind:"新聞媒體",platform:"Web",region:"日本",focus:["日本","PC","手遊","新聞"],url:"https://www.4gamer.net/",evidenceHint:"E4",feedUrl:"https://www.4gamer.net/rss/index.xml",lang:"ja"},
+{id:"automaton",name:"AUTOMATON（日本）",kind:"新聞媒體",platform:"Web",region:"日本",focus:["日本","獨立遊戲","產業","新聞"],url:"https://automaton-media.com/",evidenceHint:"E3",feedUrl:"https://automaton-media.com/feed/",lang:"ja"},
 {id:"digitalfoundry",name:"Digital Foundry",kind:"資料/追蹤",platform:"Web / YouTube",region:"全球",focus:["技術分析","效能","畫質","主機"],url:"https://www.digitalfoundry.net/",evidenceHint:"E4"},
 {id:"playstationblog",name:"PlayStation Blog",kind:"官方",platform:"Web",region:"Sony",focus:["PS5","公告","更新"],url:"https://blog.playstation.com/",evidenceHint:"E5",feedUrl:"https://blog.playstation.com/feed/"},
 {id:"xboxwire",name:"Xbox Wire",kind:"官方",platform:"Web / X",region:"Microsoft",focus:["Xbox","Game Pass","公告","更新"],url:"https://news.xbox.com/en-us/",evidenceHint:"E5",feedUrl:"https://news.xbox.com/en-us/feed/"},

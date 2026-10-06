@@ -90,9 +90,24 @@ function parse(xml: string, source: SourceRecord): Article[] {
         kind: classify(title, excerpt, source.kind),
         game: guessGame(title + " " + excerpt.slice(0, 120), source.game),
         evidence: source.evidenceHint,
+        lang: source.lang || "en",
       };
     })
     .filter((x) => x.title && x.link);
+}
+
+/** 依 Content-Type 或 XML 宣告的編碼解碼（部分台灣網站仍用 Big5），預設 UTF-8。 */
+async function decodeFeed(r: Response): Promise<string> {
+  const buf = new Uint8Array(await r.arrayBuffer());
+  const fromHeader = r.headers.get("content-type")?.match(/charset=([\w-]+)/i)?.[1];
+  const head = new TextDecoder("latin1").decode(buf.slice(0, 200));
+  const fromXml = head.match(/<\?xml[^>]*encoding=["']([\w-]+)["']/i)?.[1];
+  const charset = (fromXml || fromHeader || "utf-8").toLowerCase();
+  try {
+    return new TextDecoder(charset).decode(buf);
+  } catch {
+    return new TextDecoder("utf-8").decode(buf);
+  }
 }
 
 async function fetchFeed(source: SourceRecord): Promise<Article[]> {
@@ -106,7 +121,7 @@ async function fetchFeed(source: SourceRecord): Promise<Article[]> {
     signal: AbortSignal.timeout(FEED_TIMEOUT_MS),
   });
   if (!r.ok) throw new Error("HTTP " + r.status);
-  const parsed = parse(await r.text(), source).slice(0, PER_SOURCE_LIMIT);
+  const parsed = parse(await decodeFeed(r), source).slice(0, PER_SOURCE_LIMIT);
   if (!parsed.length) throw new Error("RSS / Atom 無可解析項目");
   return parsed;
 }

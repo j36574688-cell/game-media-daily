@@ -19,6 +19,8 @@ const TOKEN_RE = /Z\s*Q\s*X\s*(\d+)\s*X\s*Q\s*Z/gi;
 
 /** 文字是否已經以中文為主（就不必再送翻譯）。 */
 export function isMostlyChinese(text: string): boolean {
+  // 有平假名 / 片假名就是日文，要翻譯
+  if (/[\u3040-\u30ff]/.test(text)) return false;
   const cjk = (text.match(/[㐀-鿿]/g) || []).length;
   const latin = (text.match(/[a-z]/gi) || []).length;
   return cjk > 0 && cjk >= latin / 3;

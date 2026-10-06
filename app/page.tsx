@@ -119,6 +119,7 @@ export default function HomePage() {
   const [onlyWatched, setOnlyWatched] = useState(false);
   const [onlySaved, setOnlySaved] = useState(false);
   const [onlyNew, setOnlyNew] = useState(false);
+  const [langFilter, setLangFilter] = useState<"all" | "zh" | "en" | "ja">("all");
   const [sortBy, setSortBy] = useState<"latest" | "heat">("latest");
   // NEW 標記：seenLinks = 看過的連結；unreadLinks = 上次「全部已讀」之後才出現的連結
   const [seenLinks, setSeenLinks] = useState<string[]>([]);
@@ -186,6 +187,7 @@ export default function HomePage() {
     if (typeof x.autoRefresh === "boolean") setAutoRefresh(x.autoRefresh);
     if (x.sortBy === "latest" || x.sortBy === "heat") setSortBy(x.sortBy);
     if (typeof x.onlyNew === "boolean") setOnlyNew(x.onlyNew);
+    if (x.langFilter === "all" || x.langFilter === "zh" || x.langFilter === "en" || x.langFilter === "ja") setLangFilter(x.langFilter);
     const d = x.draftSettings as Partial<DraftSettings> | undefined;
     if (d && typeof d === "object") {
       setDraftSettings({
@@ -209,8 +211,8 @@ export default function HomePage() {
   }, [applyState]);
 
   const persisted = useMemo(
-    () => ({ version: 3, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings, sortBy, onlyNew }),
-    [sortBy, onlyNew, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
+    () => ({ version: 3, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings, sortBy, onlyNew, langFilter }),
+    [langFilter, sortBy, onlyNew, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
   );
   useEffect(() => { if (hydrated) saveJSON(STATE_KEY, persisted); }, [hydrated, persisted]);
   useEffect(() => { if (hydrated) saveJSON(TR_KEY, trimRecord(trCache, TR_CACHE_LIMIT)); }, [hydrated, trCache]);
@@ -314,13 +316,14 @@ export default function HomePage() {
       if (onlyWatched && !watch.some((w) => matchesFamily(n, w))) return false;
       if (sourceFilter !== "全部" && n.sourceId !== sourceFilter && !(n.related || []).some((r) => r.sourceId === sourceFilter)) return false;
       if (onlyNew && !articleLinks(n).some((l) => unreadSet.has(l))) return false;
+      if (langFilter !== "all" && (n.lang || "en") !== langFilter) return false;
       return true;
     });
     if (sortBy === "heat") {
       list.sort((a, b) => (b.coverage || 1) - (a.coverage || 1) || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0));
     }
     return list;
-  }, [pool, query, contentType, gameFamily, platforms, onlyWatched, watch, sourceFilter, trCache, translateMode, sig, onlyNew, unreadSet, sortBy]);
+  }, [pool, query, contentType, gameFamily, platforms, onlyWatched, watch, sourceFilter, trCache, translateMode, sig, onlyNew, unreadSet, sortBy, langFilter]);
 
   const savedIds = useMemo(() => new Set(savedArticles.map((a) => a.id)), [savedArticles]);
   const tr = useCallback((id: string) => trCache[trKey(id, translateMode, sig)], [trCache, translateMode, sig]);
@@ -329,6 +332,7 @@ export default function HomePage() {
   // ---------- 翻譯：只翻「還沒翻過」的文章；結果存在本機，篩選或重新整理都不會重翻、不會清掉校對紀錄
   const translateItems = useCallback(async (items: Article[], force = false) => {
     const todo = items.filter((n) => {
+      if (n.lang === "zh") return false; // 中文原文不用翻
       const key = trKey(n.id, translateMode, sig);
       if (inFlight.current.has(key)) return false;
       return force || !trCache[key];
@@ -377,7 +381,7 @@ export default function HomePage() {
 
   // 自動翻譯：新聞載入後，對目前清單前 N 則「缺翻譯且沒失敗過」的文章補翻
   const pendingKey = useMemo(
-    () => filtered.slice(0, AUTO_TRANSLATE_LIMIT).filter((n) => !trCache[trKey(n.id, translateMode, sig)] && !failedIds.includes(n.id)).map((n) => n.id).join("|"),
+    () => filtered.filter((n) => n.lang !== "zh").slice(0, AUTO_TRANSLATE_LIMIT).filter((n) => !trCache[trKey(n.id, translateMode, sig)] && !failedIds.includes(n.id)).map((n) => n.id).join("|"),
     [filtered, trCache, translateMode, sig, failedIds]
   );
   useEffect(() => {
@@ -528,7 +532,8 @@ export default function HomePage() {
     [news]
   );
   const riskCount = audits.filter((a) => a.decision === "EDIT_REQUIRED" || a.decision === "FAST_UNVERIFIED").length;
-  const translatedCount = filtered.filter((n) => tr(n.id)).length;
+  const needTranslation = filtered.filter((n) => n.lang !== "zh");
+  const translatedCount = needTranslation.filter((n) => tr(n.id)).length;
   const statusText = loading ? "更新中…" : health.loaded ? "更新於 " + taipeiTime(health.generatedAt) : "尚未載入";
 
   // ---------------------------------------------------------------- 畫面
@@ -666,6 +671,7 @@ export default function HomePage() {
                   <select className="select" value={contentType} onChange={(e) => setContentType(e.target.value)} aria-label="類型">{ARTICLE_KINDS.map((x) => <option key={x}>{x}</option>)}</select>
                   <select className="select" value={gameFamily} onChange={(e) => setGameFamily(e.target.value)} aria-label="遊戲">{GAME_FAMILIES.map((x) => <option key={x}>{x}</option>)}</select>
                   <select className="select sourceSelect" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} aria-label="來源"><option value="全部">全部來源</option>{RSS_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+                  <select className="select" value={langFilter} onChange={(e) => setLangFilter(e.target.value as "all" | "zh" | "en" | "ja")} aria-label="語言"><option value="all">全部語言</option><option value="zh">中文來源</option><option value="en">英文來源</option><option value="ja">日文來源</option></select>
                 </div>
               </div>
               <div className="toolrow">
@@ -696,7 +702,7 @@ export default function HomePage() {
                 <span><span className={health.loaded ? "dot" : "dot dotWarn"} /> {health.loaded ? "即時來源" : loading ? "載入中" : "尚未載入"}</span>
                 <span>Feed {health.loaded ? health.successfulSources + "/" + health.feedCount : "—"}</span>
                 <span>顯示 {filtered.length} 則</span>
-                <span>翻譯（{engineLabel}）{translatedCount}/{filtered.length}{translating ? "（翻譯中 " + translating + "）" : ""}</span>
+                <span>翻譯（{engineLabel}）{translatedCount}/{needTranslation.length}{translating ? "（翻譯中 " + translating + "）" : ""}</span>
                 <span>台北時間 {taipeiTime(health.generatedAt)}</span>
               </div>
 
@@ -721,10 +727,10 @@ export default function HomePage() {
                         </details>
                       )}
                       <div className="newsBottom">
-                        <div className="storyTags"><span>{n.kind}</span>{n.game && <span>{n.game}</span>}</div>
+                        <div className="storyTags"><span>{n.kind}</span>{n.game && <span>{n.game}</span>}{n.lang && n.lang !== "en" && <span>{n.lang === "zh" ? "中文" : "日文"}</span>}</div>
                         <div className="rowButtons">
                           <button className={savedIds.has(n.id) ? "btn" : "btn ghost"} onClick={() => toggleSaved(n)}><Bookmark size={13} />{savedIds.has(n.id) ? "已收藏" : "收藏"}</button>
-                          {t ? (
+                          {n.lang === "zh" ? null : t ? (
                             <button className={isReviewed(n.id) ? "btn" : "btn ghost"} onClick={() => toggleReviewed(n.id)}><CheckCircle2 size={13} />{isReviewed(n.id) ? "已校對" : "標記校對"}</button>
                           ) : (
                             <button className="btn ghost" onClick={() => { setFailedIds((p) => p.filter((x) => x !== n.id)); void translateItems([n], true); }}><Sparkles size={13} />{failed ? "重試翻譯" : "翻譯"}</button>

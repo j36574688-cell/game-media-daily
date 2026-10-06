@@ -20,14 +20,14 @@ export const ARTICLE_KINDS = [
 ] as const;
 
 const KIND_RULES: Array<[string, RegExp]> = [
-  ["爆料", /\b(leak|leaked|leaks|rumou?r|rumou?red|insider|datamine[ds]?|reportedly|allegedly)\b|疑似|爆料|傳聞|據傳|流出/i],
-  ["延期", /\b(delay|delayed|delays|postpone[ds]?|pushed back)\b|延期|延後/i],
+  ["爆料", /\b(leak|leaked|leaks|rumou?r|rumou?red|insider|datamine[ds]?|reportedly|allegedly)\b|疑似|爆料|傳聞|據傳|流出|リーク|噂/i],
+  ["延期", /\b(delay|delayed|delays|postpone[ds]?|pushed back)\b|延期|延後|発売延期/i],
   ["收購 / 投資", /\b(acquir\w*|acquisition|merger|invest\w*|buyout|takeover)\b|收購|併購|投資/i],
   ["裁員 / 勞動", /\b(layoffs?|laid off|lays off|unioni[sz]\w*|on strike|redundanc\w*)\b|裁員|工會|罷工/i],
-  ["評測", /\b(review|reviews|reviewed|impressions)\b|評測|試玩心得/i],
-  ["價格 / Deals", /\b(price|priced|pricing|sale|deals?|discount\w*|\d+% off|free to keep|free this week)\b|價格|折扣|特價|限免/i],
-  ["版本更新", /\b(patch|patches|hotfix|update|updated|version|season \d+|title update|changelog)\b|更新|版本|補丁|熱修正|新賽季/i],
-  ["發售", /\b(release date|launch(es|ed)?|out now|available now|pre-?orders?|coming to)\b|發售|上市|推出|預購/i],
+  ["評測", /\b(review|reviews|reviewed|impressions)\b|評測|試玩心得|レビュー|プレイレポート/i],
+  ["價格 / Deals", /\b(price|priced|pricing|sale|deals?|discount\w*|\d+% off|free to keep|free this week)\b|價格|折扣|特價|限免|セール|割引|値下げ/i],
+  ["版本更新", /\b(patch|patches|hotfix|update|updated|version|season \d+|title update|changelog)\b|更新|版本|補丁|熱修正|新賽季|アップデート|パッチ/i],
+  ["發售", /\b(release date|launch(es|ed)?|out now|available now|pre-?orders?|coming to)\b|發售|上市|推出|預購|発売|配信開始|予約/i],
   ["電競", /\b(esports?|tournament|championship|vct|playoffs?|grand finals?)\b|電競|錦標賽|世界賽/i],
   ["硬體 / 平台", /\b(console|hardware|gpu|cpu|ps5 pro|switch 2|steam deck|handheld|controller|xbox series)\b|主機|硬體|掌機|顯示卡/i],
   ["數據報導", /\d[\d,.]*\s*(k|m|million)?\s*(concurrent )?players\b|\b(concurrent|all-time peak|units sold|copies sold|revenue|performance|fps|frame ?rate|benchmark)\b|玩家數|銷量|營收|效能|幀率|同時在線/i],
@@ -46,7 +46,7 @@ export function classify(title: string, excerpt = "", sourceKind = ""): string {
 
 /** 遊戲 / 平台家族；名稱需與 lib/sources.ts 的 GAME_FAMILIES 一致。 */
 const GAME_RULES: Array<[string, RegExp]> = [
-  ["Apex Legends", /\bapex legends?\b|\bapex\b|apex 英雄/i],
+  ["Apex Legends", /\bapex legends?\b|\bapex\b|apex 英雄|エーペックス/i],
   ["Call of Duty", /\bcall of duty\b|\bcod\b|black ops|modern warfare|warzone/i],
   ["Fortnite", /\bfortnite\b|要塞英雄/i],
   ["Overwatch", /\boverwatch\b|鬥陣特攻/i],
@@ -54,10 +54,10 @@ const GAME_RULES: Array<[string, RegExp]> = [
   ["League of Legends", /\bleague of legends\b|\blol\b|英雄聯盟/i],
   ["Counter-Strike 2", /\bcounter-?strike\b|\bcs2\b|\bcs:?go\b/i],
   ["GTA", /\bgta\b|grand theft auto|俠盜獵車/i],
-  ["Pokémon", /\bpok[eé]mon\b|寶可夢/i],
-  ["Monster Hunter", /\bmonster hunter\b|魔物獵人/i],
-  ["Final Fantasy", /\bfinal fantasy\b|\bff ?(vii|xiv|xvi|7|14|16)\b|太空戰士/i],
-  ["Resident Evil", /\bresident evil\b|惡靈古堡/i],
+  ["Pokémon", /\bpok[eé]mon\b|寶可夢|ポケモン/i],
+  ["Monster Hunter", /\bmonster hunter\b|魔物獵人|モンスターハンター|モンハン/i],
+  ["Final Fantasy", /\bfinal fantasy\b|\bff ?(vii|xiv|xvi|7|14|16)\b|太空戰士|ファイナルファンタジー/i],
+  ["Resident Evil", /\bresident evil\b|惡靈古堡|バイオハザード/i],
   ["Minecraft", /\bminecraft\b|當個創世神/i],
   ["Elden Ring", /\belden ring\b|艾爾登法環/i],
   ["The Elder Scrolls", /\belder scrolls\b|\bskyrim\b|上古卷軸/i],
@@ -65,7 +65,7 @@ const GAME_RULES: Array<[string, RegExp]> = [
   ["The Witcher", /\bwitcher\b|巫師/i],
   ["EA Sports FC", /\bea sports fc\b|\bea fc\b|\bfc 2\d\b/i],
   ["NBA 2K", /\bnba 2k/i],
-  ["Nintendo", /\bnintendo\b|\bswitch 2\b|\bswitch (oled|lite|online)\b|任天堂/i],
+  ["Nintendo", /\bnintendo\b|\bswitch 2\b|\bswitch (oled|lite|online)\b|任天堂|スイッチ/i],
   ["PlayStation", /\bplaystation\b|\bps5\b|\bps4\b|\bps plus\b/i],
   ["Xbox", /\bxbox\b|game pass/i],
   ["Steam", /\bsteam\b|\bvalve\b/i],

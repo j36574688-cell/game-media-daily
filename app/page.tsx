@@ -23,8 +23,8 @@ type Audit = { id: string; text: string; type: string; evidence: string; decisio
 type FeedHealth = { loaded: boolean; feedCount: number; successfulSources: number; failedSources: string[]; sourceStats: SourceStat[]; fetched: number; duplicatesRemoved: number; generatedAt: string };
 
 const STATE_KEY = "gmd-state";
-const TR_KEY = "gmd-translations-v3";
-const REVIEW_KEY = "gmd-reviewed-v3";
+const TR_KEY = "gmd-translations-v4";
+const REVIEW_KEY = "gmd-reviewed-v4";
 const TR_CACHE_LIMIT = 600;
 const AUTO_TRANSLATE_LIMIT = 60; // 每次最多自動翻譯目前清單前 60 則，其他按需翻譯
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
@@ -138,6 +138,7 @@ export default function HomePage() {
   const [manualReviewed, setManualReviewed] = useState(false);
   const [targetLang, setTargetLang] = useState("zh-TW");
   const [manualBusy, setManualBusy] = useState(false);
+  const [engine, setEngine] = useState<{ gemini: boolean; model: string | null } | null>(null);
 
   // Threads
   const [selected, setSelected] = useState<string[]>([]);
@@ -237,6 +238,15 @@ export default function HomePage() {
     }
   }, [feedQuery, sourceFilter]);
 
+  // 目前的翻譯引擎（Gemini 或免費 Google）
+  useEffect(() => {
+    fetch("/api/translate", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setEngine({ gemini: Boolean(d?.gemini), model: d?.model ? String(d.model) : null }))
+      .catch(() => setEngine({ gemini: false, model: null }));
+  }, []);
+  const engineLabel = engine?.gemini ? "Gemini" : "Google";
+
   // 開啟頁面就抓一次即時新聞（不再停在示範資料）
   const firstLoad = useRef(false);
   useEffect(() => {
@@ -304,10 +314,11 @@ export default function HomePage() {
         if (!r.ok) throw new Error(d?.error || "translate failed");
         const ok: Record<string, TranslationEntry> = {};
         const failed: string[] = [];
-        for (const x of (d.translations || []) as Array<{ id: string; title: string; excerpt: string; failed?: boolean }>) {
+        for (const x of (d.translations || []) as Array<{ id: string; title: string; excerpt: string; failed?: boolean; engine?: string }>) {
           if (x.failed) failed.push(x.id);
-          else ok[trKey(x.id, translateMode, sig)] = { title: x.title, excerpt: x.excerpt };
+          else ok[trKey(x.id, translateMode, sig)] = { title: x.title, excerpt: x.excerpt, engine: x.engine === "gemini" ? "gemini" : "google" };
         }
+        if (d.notice) setNotice(String(d.notice));
         setTrCache((p) => ({ ...p, ...ok }));
         if (force) setReviewed((p) => p.filter((k) => !(k in ok)));
         setFailedIds((p) => [...p.filter((id) => !batch.some((n) => n.id === id)), ...failed]);
@@ -354,6 +365,7 @@ export default function HomePage() {
       const x = d.translations?.[0];
       if (!r.ok || !x || x.failed) throw new Error("failed");
       setManualOut(x.title);
+      if (d.notice) setNotice(String(d.notice));
     } catch {
       setManualOut("");
       setNotice("翻譯失敗：免費翻譯服務暫時無法使用，請稍後再試。");
@@ -631,7 +643,7 @@ export default function HomePage() {
                 <span><span className={health.loaded ? "dot" : "dot dotWarn"} /> {health.loaded ? "即時來源" : loading ? "載入中" : "尚未載入"}</span>
                 <span>Feed {health.loaded ? health.successfulSources + "/" + health.feedCount : "—"}</span>
                 <span>顯示 {filtered.length} 則</span>
-                <span>翻譯 {translatedCount}/{filtered.length}{translating ? "（翻譯中 " + translating + "）" : ""}</span>
+                <span>翻譯（{engineLabel}）{translatedCount}/{filtered.length}{translating ? "（翻譯中 " + translating + "）" : ""}</span>
                 <span>台北時間 {taipeiTime(health.generatedAt)}</span>
               </div>
 
@@ -646,7 +658,7 @@ export default function HomePage() {
                       <div className="newsTop"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span></div>
                       <h3>{t?.title || n.title}</h3>
                       {t && <div className="origTitle">{n.title}</div>}
-                      {t && <div className={isReviewed(n.id) ? "aiLabel" : "aiLabel aiPending"}><Sparkles size={11} />自動翻譯 · {isReviewed(n.id) ? "已人工校對" : "待人工校對"}</div>}
+                      {t && <div className={isReviewed(n.id) ? "aiLabel" : "aiLabel aiPending"}><Sparkles size={11} />{t.engine === "gemini" ? "Gemini" : "Google"} · {MODE_LABEL[translateMode]} · {isReviewed(n.id) ? "已人工校對" : "待人工校對"}</div>}
                       {failed && <div className="aiLabel aiFailed"><CircleAlert size={11} />翻譯失敗，顯示原文</div>}
                       <p>{t?.excerpt || n.excerpt || "無摘要；開啟原文閱讀完整內容。"}</p>
                       <div className="newsBottom">
@@ -746,10 +758,14 @@ export default function HomePage() {
             <div className="translatorHero">
               <div>
                 <span className="sectionKicker">GAME TRANSLATION LAB</span>
-                <h2>免費翻譯＋遊戲術語保護</h2>
-                <p>翻譯前先把術語、專有名詞、網址換成保護標記，翻完再換回指定譯法。三種模式：<b>貼近原文</b>只保護遊戲名稱與你的自訂術語；<b>新聞口吻</b>套用術語表，並整理成台灣新聞寫法（「」引號、125 萬、標題不加句號）；<b>遊戲術語</b>改用玩家慣用語（第 27 賽季、造型、排位、過強）。切換模式會自動重翻。免費翻譯引擎沒辦法改寫語氣，口語化請在 Threads 草稿裡自己潤飾。</p>
+                <h2>{engine?.gemini ? "Gemini 翻譯：三種口吻改寫" : "免費翻譯＋遊戲術語保護"}</h2>
+                {engine?.gemini ? (
+                  <p>目前使用 Gemini（{engine.model}）。三種口吻會真的改寫：<b>貼近原文</b>忠實直譯；<b>新聞口吻</b>像台灣新聞編輯的正式寫法；<b>遊戲術語</b>像在巴哈、PTT 跟玩家聊天。術語表與自訂術語會一起交給 Gemini 參考。Gemini 額度用完或失敗時，會自動改用免費 Google 翻譯並提示你。</p>
+                ) : (
+                  <p>目前使用免費 Google 翻譯：只能翻字，三種模式的差別只在用詞與格式（術語、「」引號、125 萬、玩家用語），很多標題三種模式會一樣。想讓口吻真的不同，請在 Vercel 設定 GEMINI_API_KEY（見 README）。</p>
+                )}
               </div>
-              <span className="badge good">免費 · 不需 API key</span>
+              <span className={`badge ${engine?.gemini ? "good" : "neutral"}`}>{engine === null ? "檢查中" : engine.gemini ? "Gemini 已啟用" : "Google 免費翻譯"}</span>
             </div>
             <div className="grid2">
               <section className="panel">

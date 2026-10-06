@@ -68,6 +68,20 @@ GitHub repository 匯入 Vercel 即可，不需要設定環境變數。
 
 網站網址是公開的，理論上別人也能呼叫你的 `/api/translate`。這個工具用量小，通常不是問題；如果在意，可以研究 Vercel 的 Deployment Protection（部分選項需付費方案）。
 
+## Gemini 翻譯（選填，讓三種口吻真的不同）
+
+免費 Google 翻譯只能翻字；設定 Gemini 後，「貼近原文 / 新聞口吻 / 遊戲術語」會由 Gemini 真正改寫。
+
+1. 到 [Google AI Studio](https://aistudio.google.com/apikey) 建立 API key（免費方案不需信用卡；Gemini 會員方案不包含 API 用量，兩者分開計算）。
+2. Vercel 專案 → Settings → Environment Variables，新增 `GEMINI_API_KEY`，值貼上 key，Environments 勾 Production 與 Preview。
+3. 重新部署（Deployments → 最新一筆 → Redeploy）。
+4. 翻譯工作台右上角顯示「Gemini 已啟用」就成功了。
+
+注意：
+- 免費方案每天有請求上限，可在 AI Studio 查看；用完會自動改用 Google 翻譯並提示。每 10 則新聞只用 1 次請求。
+- 免費方案的內容可能被 Google 用來改進產品；這裡處理的是公開新聞，但不要貼私人資料。
+- 想換模型：設定 `GEMINI_MODEL`（例如 `gemini-3.5-flash`）。
+
 ## 翻譯服務
 
 使用 Google Translate 的免費公開端點，不需要 key，但它不是正式服務，請求太頻繁可能暫時被限流。程式已經做了快取與失敗標示；翻譯結果一律建議人工校對後再發布。

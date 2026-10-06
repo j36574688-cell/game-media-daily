@@ -24,6 +24,8 @@ export type TranslationEntry = {
   excerpt: string;
   /** true 代表翻譯服務失敗，title / excerpt 是原文 */
   failed?: boolean;
+  /** 實際使用的翻譯引擎 */
+  engine?: "gemini" | "google";
 };
 
 export type DraftSettings = {

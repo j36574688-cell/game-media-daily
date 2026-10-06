@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { translateWith, postProcess, type CustomTerm, type TranslateMode } from "@/lib/translate-core";
+import { geminiConfigured, geminiTranslate, GeminiError } from "@/lib/gemini";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -63,6 +64,14 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   return out;
 }
 
+/** 讓前端知道目前用哪個翻譯引擎（不回傳 key）。 */
+export async function GET() {
+  return NextResponse.json({
+    gemini: geminiConfigured(),
+    model: geminiConfigured() ? process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite" : null,
+  });
+}
+
 type InArticle = { id?: unknown; title?: unknown; excerpt?: unknown };
 
 export async function POST(req: NextRequest) {
@@ -83,19 +92,43 @@ export async function POST(req: NextRequest) {
     : [];
   const articles: InArticle[] = Array.isArray(body.articles) ? body.articles.slice(0, 20) : [];
 
-  const translations = await mapLimit(articles, 3, async (article) => {
-    const id = String(article.id ?? "");
-    const title = String(article.title || "").slice(0, 4000);
-    const excerpt = String(article.excerpt || "").slice(0, 1500);
+  type Out = { id: string; title: string; excerpt: string; failed: boolean; engine: "gemini" | "google" | "none" };
+  const clean = articles.map((a) => ({
+    id: String(a.id ?? ""),
+    title: String(a.title || "").slice(0, 4000),
+    excerpt: String(a.excerpt || "").slice(0, 1500),
+  }));
+
+  // 1) 有設定 GEMINI_API_KEY：整批交給 Gemini，依口吻真正改寫
+  let geminiNote = "";
+  if (geminiConfigured() && clean.length) {
+    try {
+      const got = await geminiTranslate(clean, target, mode, custom);
+      const translations: Out[] = got.map((x) => ({
+        id: x.id,
+        title: postProcess(x.title, target, "literal", custom, "title"),
+        excerpt: postProcess(x.excerpt, target, "literal", custom, "body"),
+        failed: false,
+        engine: "gemini",
+      }));
+      return NextResponse.json({ translations, failedCount: 0, model: "gemini", engine: "gemini", mode, customGlossaryApplied: custom.length });
+    } catch (e) {
+      // Gemini 失敗（額度用完、模型名稱錯、逾時）→ 改用免費 Google 翻譯，不讓使用者看到空白
+      geminiNote = e instanceof GeminiError && e.quota ? "Gemini 免費額度暫時用完，已改用 Google 翻譯" : "Gemini 翻譯失敗（" + (e instanceof Error ? e.message : "未知錯誤") + "），已改用 Google 翻譯";
+    }
+  }
+
+  // 2) 免費 Google 翻譯 + 術語保護（備援）
+  const translations: Out[] = await mapLimit(clean, 3, async ({ id, title, excerpt }) => {
     try {
       const [t, e] = await Promise.all([
         translateWith(googleTranslate, title, target, mode, custom, "title"),
         translateWith(googleTranslate, excerpt, target, mode, custom, "body"),
       ]);
-      return { id, title: t, excerpt: e, failed: false };
+      return { id, title: t, excerpt: e, failed: false, engine: "google" as const };
     } catch {
       // 失敗時明確回報，並回傳原文（不再回傳「半翻譯」的中英夾雜文字）
-      return { id, title: postProcess(title, "en", mode, []), excerpt: postProcess(excerpt, "en", mode, []), failed: true };
+      return { id, title: postProcess(title, "en", mode, []), excerpt: postProcess(excerpt, "en", mode, []), failed: true, engine: "none" as const };
     }
   });
 
@@ -103,6 +136,8 @@ export async function POST(req: NextRequest) {
     translations,
     failedCount: translations.filter((x) => x.failed).length,
     model: "free-google-translate",
+    engine: "google",
+    notice: geminiNote || undefined,
     mode,
     customGlossaryApplied: custom.length,
   });

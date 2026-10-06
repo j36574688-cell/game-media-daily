@@ -89,8 +89,8 @@ export async function POST(req: NextRequest) {
     const excerpt = String(article.excerpt || "").slice(0, 1500);
     try {
       const [t, e] = await Promise.all([
-        translateWith(googleTranslate, title, target, mode, custom),
-        translateWith(googleTranslate, excerpt, target, mode, custom),
+        translateWith(googleTranslate, title, target, mode, custom, "title"),
+        translateWith(googleTranslate, excerpt, target, mode, custom, "body"),
       ]);
       return { id, title: t, excerpt: e, failed: false };
     } catch {

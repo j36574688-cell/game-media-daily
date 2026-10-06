@@ -1,9 +1,11 @@
 // 翻譯前後處理：保護網址與術語、套用自訂術語、台灣用語修正。
 // 與實際翻譯引擎分開，方便測試與日後更換引擎。
-import { GLOSSARY, PROPER_TERMS, TW_WORDING } from "./glossary";
+import { GAMER_GLOSSARY, GAMER_PATTERNS, GAMER_WORDING, GLOSSARY, NEWS_WORDING, PROPER_TERMS, TW_WORDING } from "./glossary";
 
 export type TranslateMode = "news" | "game" | "literal";
 export type CustomTerm = [string, string];
+/** 標題與內文的排版規則不同（例如新聞標題不加句號）。 */
+export type TextKind = "title" | "body";
 
 const HAS_CJK = /[㐀-鿿]/;
 
@@ -26,7 +28,7 @@ export function isMostlyChinese(text: string): boolean {
  * 把網址、專有名詞、術語換成佔位符。
  * 回傳 protectedText 給翻譯引擎，翻完再用 restore() 換回。
  */
-export function protect(text: string, target: string, custom: CustomTerm[]) {
+export function protect(text: string, target: string, custom: CustomTerm[], mode: TranslateMode = "news") {
   const saved: string[] = [];
   const keep = (value: string) => {
     saved.push(value);
@@ -35,10 +37,14 @@ export function protect(text: string, target: string, custom: CustomTerm[]) {
   let out = text.replace(/https?:\/\/[^\s<>"]+/gi, (url) => keep(url));
 
   const toChinese = target.toLowerCase().startsWith("zh");
+  // 「遊戲術語」：Season 27 → 第 27 賽季 這類有編號的說法
+  if (toChinese && mode === "game") for (const [re, zh] of GAMER_PATTERNS) out = out.replace(re, (...m) => keep(zh.replace("$1", String(m[1]))));
   // 英文來源的術語：自訂術語優先於內建術語；專有名詞保持原文
+  // 「貼近原文」不套用內建術語表，只保護專有名詞與自訂術語
   const terms = new Map<string, string>();
   for (const name of PROPER_TERMS) terms.set(name.toLowerCase(), name);
-  if (toChinese) for (const [en, zh] of GLOSSARY) terms.set(en.toLowerCase(), zh);
+  if (toChinese && mode !== "literal") for (const [en, zh] of GLOSSARY) terms.set(en.toLowerCase(), zh);
+  if (toChinese && mode === "game") for (const [en, zh] of GAMER_GLOSSARY) terms.set(en.toLowerCase(), zh);
   for (const [from, to] of custom) if (!HAS_CJK.test(from)) terms.set(from.toLowerCase(), to);
 
   const keys = [...terms.keys()].filter(Boolean).sort((a, b) => b.length - a.length);
@@ -55,18 +61,39 @@ export function protect(text: string, target: string, custom: CustomTerm[]) {
 }
 
 /** 翻譯後處理：中文術語校正、台灣用語、標點空白。 */
-export function postProcess(text: string, target: string, mode: TranslateMode, custom: CustomTerm[]): string {
+/** 1,000,000 → 100 萬；只轉換有千分位逗號的大數字，避免動到年份、型號。 */
+function toChineseNumber(text: string): string {
+  return text.replace(/(?<![\d.,])(\d{1,3}(?:,\d{3})+)(?![\d,])/g, (m) => {
+    const n = Number(m.replace(/,/g, ""));
+    if (!Number.isFinite(n) || n < 10000) return m;
+    const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, ""));
+    if (n >= 1e8) return fmt(n / 1e8) + " 億";
+    return fmt(n / 1e4) + " 萬";
+  });
+}
+
+export function postProcess(text: string, target: string, mode: TranslateMode, custom: CustomTerm[], kind: TextKind = "body"): string {
   let out = text;
   if (target.toLowerCase().startsWith("zh")) {
     for (const [from, to] of TW_WORDING) out = out.split(from).join(to);
-    if (mode === "game") out = out.replace(/用戶|使用者/g, "玩家");
+    if (mode === "game") for (const [from, to] of GAMER_WORDING) out = out.split(from).join(to);
+    if (mode === "news") {
+      for (const [from, to] of NEWS_WORDING) out = out.split(from).join(to);
+      out = toChineseNumber(out);
+    }
+    if (mode !== "literal") {
+      // 台灣慣用的引號：“ ” → 「 」、‘ ’ → 『 』（只在中文語境；英文縮寫的 ’ 不動）
+      out = out.replace(/[“"]([^“”"]{1,200})[”"]/g, "「$1」").replace(/‘([^‘’]{1,200})’/g, "『$1』");
+    }
     // 中文 → 中文的自訂術語（例如把引擎譯的「傳奇」改成「英雄」）
     for (const [from, to] of custom) if (HAS_CJK.test(from)) out = out.split(from).join(to);
     // 中文與標點之間不留空白；中英之間保留一個空白
     out = out
       .replace(/\s+([，。！？；：、」』）])/g, "$1")
       .replace(/([「『（])\s+/g, "$1")
-      .replace(/([㐀-鿿，。！？；：、])\s+([㐀-鿿])/g, "$1$2");
+      .replace(/([㐀-鿿，。！？；：、])\s+(?=[㐀-鿿「『（])/g, "$1");
+    // 新聞標題不加句號
+    if (mode === "news" && kind === "title") out = out.replace(/[。．.]\s*$/, "");
   }
   return out.replace(/[ \t]{2,}/g, " ").trim();
 }
@@ -96,13 +123,14 @@ export async function translateWith(
   text: string,
   target: string,
   mode: TranslateMode,
-  custom: CustomTerm[]
+  custom: CustomTerm[],
+  kind: TextKind = "body"
 ): Promise<string> {
   if (!text.trim()) return "";
   const toChinese = target.toLowerCase().startsWith("zh");
-  if (toChinese && isMostlyChinese(text)) return postProcess(text, target, mode, custom);
-  const { protectedText, restore } = protect(text, target, custom);
+  if (toChinese && isMostlyChinese(text)) return postProcess(text, target, mode, custom, kind);
+  const { protectedText, restore } = protect(text, target, custom, mode);
   const parts: string[] = [];
   for (const chunk of splitForTranslation(protectedText)) parts.push(await engine(chunk, target));
-  return postProcess(restore(parts.join(toChinese ? "" : " ")), target, mode, custom);
+  return postProcess(restore(parts.join(toChinese ? "" : " ")), target, mode, custom, kind);
 }

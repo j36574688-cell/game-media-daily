@@ -362,6 +362,14 @@ export default function HomePage() {
     }
   }
 
+  // 切換翻譯模式時，翻譯工作台已有結果就用新模式重翻一次
+  const lastManualMode = useRef(translateMode);
+  useEffect(() => {
+    if (lastManualMode.current === translateMode) return;
+    lastManualMode.current = translateMode;
+    if (manualText.trim() && manualOut) void translateManual();
+  });
+
   function addTerm() {
     const from = newTermFrom.trim();
     const to = newTermTo.trim();
@@ -739,7 +747,7 @@ export default function HomePage() {
               <div>
                 <span className="sectionKicker">GAME TRANSLATION LAB</span>
                 <h2>免費翻譯＋遊戲術語保護</h2>
-                <p>翻譯前先把遊戲術語、專有名詞、網址換成保護標記，翻完再換回指定譯法，Google 不會把 nerf、Battle Pass、遊戲名稱亂翻。「遊戲術語」模式套用內建術語表；「貼近原文」只保護專有名詞與你的自訂術語。</p>
+                <p>翻譯前先把術語、專有名詞、網址換成保護標記，翻完再換回指定譯法。三種模式：<b>貼近原文</b>只保護遊戲名稱與你的自訂術語；<b>新聞口吻</b>套用術語表，並整理成台灣新聞寫法（「」引號、125 萬、標題不加句號）；<b>遊戲術語</b>改用玩家慣用語（第 27 賽季、造型、排位、過強）。切換模式會自動重翻。免費翻譯引擎沒辦法改寫語氣，口語化請在 Threads 草稿裡自己潤飾。</p>
               </div>
               <span className="badge good">免費 · 不需 API key</span>
             </div>

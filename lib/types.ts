@@ -15,9 +15,11 @@ export type Article = {
   coverage?: number;
   /** 其他媒體對同一件事的報導 */
   related?: RelatedItem[];
+  /** 同一事件最早一則報導的時間（用來算擴散速度） */
+  firstSeenAt?: string;
 };
 
-export type RelatedItem = { source: string; sourceId: string; title: string; link: string; publishedAt: string };
+export type RelatedItem = { source: string; sourceId: string; title: string; link: string; publishedAt: string; evidence?: string; lang?: "en" | "zh" | "ja" };
 
 export type SourceStat = {
   id: string;

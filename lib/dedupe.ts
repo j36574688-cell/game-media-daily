@@ -130,14 +130,19 @@ export function clusterCoverage(articles: Article[], threshold = 0.42, windowDay
       title: articles[k].title,
       link: articles[k].link,
       publishedAt: articles[k].publishedAt,
+      evidence: articles[k].evidence,
+      lang: articles[k].lang,
     }));
     const sources = new Set(idxs.map((k) => articles[k].sourceId));
     const newest = Math.max(...idxs.map((k) => time(articles[k])));
+    const known = idxs.map((k) => time(articles[k])).filter(Boolean);
+    const oldest = known.length ? Math.min(...known) : 0;
     out.push({
       ...lead,
       // 卡片時間用整個事件最新一則的時間，排序時才不會被舊的代表文章拖到後面
       publishedAt: newest ? new Date(newest).toISOString() : lead.publishedAt,
       coverage: sources.size,
+      firstSeenAt: oldest ? new Date(oldest).toISOString() : lead.publishedAt,
       related,
     });
   }

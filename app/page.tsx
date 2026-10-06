@@ -10,6 +10,7 @@ import { ALL_SOURCE_RECORDS, EVIDENCE_LABELS, GAME_FAMILIES, LANGUAGE_LEVELS, PE
 import { ARTICLE_KINDS, charLength, matchesGame, matchesPlatform } from "@/lib/classify";
 import { GLOSSARY } from "@/lib/glossary";
 import { buildThreadPosts, THREADS_LIMIT, type PostTemplate } from "@/lib/threads";
+import { heatLevel, heatScore, type Heat } from "@/lib/heat";
 import { assessClaim, CONTENT_GATES, DECISION_LABEL, detectSignals, type Decision } from "@/lib/audit";
 import { isStringArray, loadJSON, saveJSON, trimRecord } from "@/lib/storage";
 import type { Article, DraftSettings, SourceStat, TranslationEntry } from "@/lib/types";
@@ -420,6 +421,21 @@ export default function HomePage() {
     setUnreadLinks((u) => u.filter((l) => !ls.has(l)));
   }
 
+  // 熱度分數（含追蹤遊戲加成）；每分鐘重算一次新鮮度
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setClock(Date.now()), 60000); return () => clearInterval(t); }, []);
+  const heatOf = useMemo(() => {
+    const cache = new Map<string, Heat>();
+    return (n: Article) => {
+      let h = cache.get(n.id);
+      if (!h) {
+        h = heatScore(n, { now: clock, watched: watch.some((w) => matchesFamily(n, w)) });
+        cache.set(n.id, h);
+      }
+      return h;
+    };
+  }, [clock, watch]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = pool.filter((n) => {
@@ -437,10 +453,10 @@ export default function HomePage() {
       return true;
     });
     if (sortBy === "heat") {
-      list.sort((a, b) => (b.coverage || 1) - (a.coverage || 1) || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0));
+      list.sort((a, b) => heatOf(b).score - heatOf(a).score || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0));
     }
     return list;
-  }, [pool, query, contentType, gameFamily, platforms, onlyWatched, watch, sourceFilter, trCache, translateMode, sig, onlyNew, unreadSet, sortBy, langFilter]);
+  }, [pool, query, contentType, gameFamily, platforms, onlyWatched, watch, sourceFilter, trCache, translateMode, sig, onlyNew, unreadSet, sortBy, langFilter, heatOf]);
 
   const savedIds = useMemo(() => new Set(savedArticles.map((a) => a.id)), [savedArticles]);
   const tr = useCallback((id: string) => trCache[trKey(id, translateMode, sig)], [trCache, translateMode, sig]);
@@ -646,8 +662,8 @@ export default function HomePage() {
   }, [followed, onlyFollowed]);
   const topStories = filtered.slice(0, 6);
   const hotStories = useMemo(
-    () => news.filter((n) => (n.coverage || 1) >= 2).sort((a, b) => (b.coverage || 1) - (a.coverage || 1) || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0)).slice(0, 6),
-    [news]
+    () => [...news].sort((a, b) => heatOf(b).score - heatOf(a).score || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0)).slice(0, 6),
+    [news, heatOf]
   );
   const riskCount = audits.filter((a) => a.decision === "EDIT_REQUIRED" || a.decision === "FAST_UNVERIFIED").length;
   const needTranslation = filtered.filter((n) => n.lang !== "zh");
@@ -738,7 +754,7 @@ export default function HomePage() {
                   <article className="storyRow" key={n.id}>
                     <div className="storyIndex">{String(i + 1).padStart(2, "0")}</div>
                     <div>
-                      <div className="rowMeta"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span>{isNew(n) && <span className="badge new">NEW</span>}{(n.coverage || 1) >= 2 && <span className="badge hot">🔥 {n.coverage} 家</span>}</div>
+                      <div className="rowMeta"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span>{isNew(n) && <span className="badge new">NEW</span>}<span className={"heatBadge " + heatLevel(heatOf(n).score)}>🔥 {heatOf(n).score}</span></div>
                       <h3><a href={n.link} target="_blank" rel="noopener noreferrer" onClick={() => markRead(n)}>{tr(n.id)?.title || n.title}</a></h3>
                       <div className="storyTags"><span>{n.kind}</span>{n.game && <span>{n.game}</span>}</div>
                     </div>
@@ -767,14 +783,14 @@ export default function HomePage() {
                 <div className="panelHeader"><div><span className="sectionKicker">HOT</span><h2>熱門事件</h2></div><button className="btn ghost" onClick={() => { setSortBy("heat"); setSection("news"); }}>依熱度看 →</button></div>
                 {hotStories.length ? hotStories.map((n) => (
                   <article className="storyRow" key={n.id}>
-                    <div className="storyIndex heat">🔥{n.coverage}</div>
+                    <div className={"storyIndex heatScore " + heatLevel(heatOf(n).score)}>{heatOf(n).score}</div>
                     <div>
                       <div className="rowMeta"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span>{isNew(n) && <span className="badge new">NEW</span>}</div>
                       <h3><a href={n.link} target="_blank" rel="noopener noreferrer" onClick={() => markRead(n)}>{tr(n.id)?.title || n.title}</a></h3>
-                      <div className="storyTags"><span>{n.coverage} 家報導</span>{n.game && <span>{n.game}</span>}</div>
+                      <div className="storyTags">{heatOf(n).parts.filter((p) => p.label !== "基礎").slice(0, 3).map((p) => <span key={p.label}>{p.label} {p.value > 0 ? "+" : ""}{p.value}</span>)}</div>
                     </div>
                   </article>
-                )) : <div className="empty"><Rss size={20} /><div><strong>{health.loaded ? "目前沒有多家媒體同時報導的事件" : "載入新聞後顯示"}</strong><span>同一件事被 2 家以上媒體報導時會出現在這裡。</span></div></div>}
+                )) : <div className="empty"><Rss size={20} /><div><strong>{loading ? "載入中…" : "載入新聞後顯示"}</strong><span>依熱度分數排出前 6 名。</span></div></div>}
               </section>
             </div>
           </div>
@@ -802,7 +818,7 @@ export default function HomePage() {
                 <label className="checkLine"><input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} />只看 NEW（{newCount}）</label>
                 {newCount > 0 && <button className="btn ghost" onClick={() => setUnreadLinks([])}><CheckCircle2 size={13} />全部標為已讀</button>}
                 <span className="controlLabel">排序</span>
-                <select className="select modeSelect" value={sortBy} onChange={(e) => setSortBy(e.target.value as "latest" | "heat")}><option value="latest">最新</option><option value="heat">熱度（多家報導）</option></select>
+                <select className="select modeSelect" value={sortBy} onChange={(e) => setSortBy(e.target.value as "latest" | "heat")}><option value="latest">最新</option><option value="heat">熱度分數</option></select>
                 <span className="controlLabel">翻譯用詞</span>
                 <select className="select modeSelect" value={translateMode} onChange={(e) => setTranslateMode(e.target.value as TranslateMode)}>{(Object.keys(MODE_LABEL) as TranslateMode[]).map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}</select>
                 <button className="btn ghost" disabled={!filtered.length} onClick={() => { setFailedIds([]); void translateItems(filtered.slice(0, 20), true); }}><Sparkles size={13} />重翻前 20 則</button>
@@ -819,25 +835,30 @@ export default function HomePage() {
               <div className="newsStatus">
                 <span><span className={health.loaded ? "dot" : "dot dotWarn"} /> {health.loaded ? "即時來源" : loading ? "載入中" : "尚未載入"}</span>
                 <span>Feed {health.loaded ? health.successfulSources + "/" + health.feedCount : "—"}</span>
-                <span>顯示 {filtered.length} 則</span>
+                <span>顯示 {filtered.length} 則{sortBy === "heat" ? "・依熱度分數排序" : "・依時間排序"}</span>
                 <span>翻譯（{engineLabel}）{translatedCount}/{needTranslation.length}{translating ? "（翻譯中 " + translating + "）" : ""}</span>
                 <span>台北時間 {taipeiTime(health.generatedAt)}</span>
               </div>
 
               <div className="newsList">
-                {filtered.length ? filtered.map((n) => {
+                {filtered.length ? filtered.map((n, rank) => {
                   const t = tr(n.id);
                   const chosen = selected.includes(n.id);
                   const failed = !t && failedIds.includes(n.id);
                   return (
                     <article className={chosen ? "newsCard selected" : "newsCard"} key={n.id}>
+                      {sortBy === "heat" && <span className={"rankNo " + heatLevel(heatOf(n).score)}>#{rank + 1}</span>}
                       <label className="newsSelect"><input type="checkbox" checked={chosen} disabled={!chosen && selected.length >= 8} onChange={() => toggleList(setSelected, n.id)} /><span>加入 Threads</span></label>
-                      <div className="newsTop"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span>{isNew(n) && <span className="badge new">NEW</span>}{(n.coverage || 1) >= 2 && <span className="badge hot">🔥 {n.coverage} 家報導</span>}</div>
+                      <div className="newsTop"><span className="sourcePill">{n.source}</span><span>{formatAge(n.publishedAt)}</span><span className={`badge ${evidenceClass(n.evidence)}`}>{n.evidence}</span>{isNew(n) && <span className="badge new">NEW</span>}<span className={"heatBadge " + heatLevel(heatOf(n).score)}>🔥 {heatOf(n).score}</span>{(n.coverage || 1) >= 2 && <span className="badge hot">{n.coverage} 家報導</span>}</div>
                       <h3>{t?.title || n.title}</h3>
                       {t && <div className="origTitle">{n.title}</div>}
                       {t && <div className={isReviewed(n.id) ? "aiLabel" : "aiLabel aiPending"}><Sparkles size={11} />{t.engine === "gemini" ? "Gemini" : "Google"} · {MODE_LABEL[translateMode]} · {isReviewed(n.id) ? "已人工校對" : "待人工校對"}</div>}
                       {failed && <div className="aiLabel aiFailed"><CircleAlert size={11} />翻譯失敗，顯示原文</div>}
                       <p>{t?.excerpt || n.excerpt || "無摘要；開啟原文閱讀完整內容。"}</p>
+                      <details className="heatDetail">
+                        <summary>熱度 {heatOf(n).score} 分怎麼來的</summary>
+                        <div className="heatParts">{heatOf(n).parts.map((p) => <span key={p.label} className={p.value < 0 ? "minus" : ""}>{p.label}<b>{p.value > 0 ? "+" : ""}{p.value}</b></span>)}</div>
+                      </details>
                       {(n.related || []).length > 0 && (
                         <details className="related">
                           <summary>另外 {n.related!.length} 篇報導：{Array.from(new Set(n.related!.map((r) => r.source))).join("、")}</summary>

@@ -71,3 +71,20 @@
 .syncSetup ol{margin:8px 0 0;padding-left:20px;color:var(--muted)}
 .syncSetup b{color:var(--text)}
 .syncCode{font:700 13px ui-monospace,SFMono-Regular,Menlo,monospace;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);letter-spacing:.04em}
+
+/* ---- v4: 熱度分數 ---- */
+.heatBadge{display:inline-flex;align-items:center;border-radius:999px;padding:2px 8px;font:800 12px ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--border);color:var(--muted)}
+.heatBadge.warm{color:#ffd59a;border-color:#5c4a2e;background:#211b12}
+.heatBadge.hot{color:#ffb38a;border-color:#6b4031;background:#2a1a13}
+.heatBadge.blaze{color:#fff;border-color:#e2563b;background:linear-gradient(90deg,#c7372a,#e8762c)}
+.storyIndex.heatScore{font:800 15px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted)}
+.storyIndex.heatScore.warm{color:#ffd59a}.storyIndex.heatScore.hot{color:#ffb38a}.storyIndex.heatScore.blaze{color:#ff7a4d}
+.newsCard{position:relative}
+.rankNo{position:absolute;top:10px;right:12px;font:800 18px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted)}
+.rankNo.hot{color:#ffb38a}.rankNo.blaze{color:#ff7a4d}
+.heatDetail{margin-top:8px;font-size:12px;color:var(--muted)}
+.heatDetail summary{cursor:pointer}
+.heatParts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.heatParts span{display:inline-flex;gap:6px;align-items:center;padding:3px 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface)}
+.heatParts b{color:var(--good)}
+.heatParts .minus b{color:var(--bad)}

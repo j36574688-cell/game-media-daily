@@ -15,7 +15,7 @@ export const GLOSSARY: Array<[string, string]> = [
   ["buff", "強化"], ["buffed", "強化"], ["nerf", "削弱"], ["nerfed", "削弱"], ["cooldown", "冷卻時間"],
   ["frame rate", "幀率"], ["framerate", "幀率"], ["remaster", "重製版"], ["remake", "重製"], ["DLC", "DLC"],
   ["roguelike", "Roguelike"], ["soulslike", "類魂"], ["souls-like", "類魂"], ["open world", "開放世界"],
-  ["showcase", "發表會"], ["State of Play", "State of Play"], ["Nintendo Direct", "Nintendo Direct"],
+  ["showcase", "發表會"], ["overpowered", "過強"], ["underpowered", "過弱"], ["ranked split", "排位賽階段"], ["concurrent players", "同時在線玩家"], ["State of Play", "State of Play"], ["Nintendo Direct", "Nintendo Direct"],
 ];
 
 /** 專有名詞：保持英文原樣，不讓翻譯引擎亂翻。 */
@@ -38,8 +38,8 @@ export const TW_WORDING: Array<[string, string]> = [
 /** 只在「遊戲術語」模式使用的玩家用語（翻譯前保護）。 */
 export const GAMER_GLOSSARY: Array<[string, string]> = [
   ["skins", "造型"], ["skin", "造型"], ["cosmetics", "外觀道具"], ["cosmetic", "外觀道具"],
-  ["ranked", "排位"], ["ranked split", "排位賽階段"], ["map rotation", "地圖輪替"], 
-  ["overpowered", "過強"], ["OP", "過強"], ["underpowered", "過弱"],
+  ["ranked", "排位"], ["map rotation", "地圖輪替"], 
+  ["OP", "過強"],
   ["loot", "戰利品"], ["drop rate", "掉落率"], ["drop rates", "掉落率"], ["gacha", "抽卡"],
   ["grind", "刷"], ["grinding", "刷"], ["speedrun", "速通"], ["speedrunner", "速通玩家"],
   ["queue", "排隊配對"], ["queue times", "排隊時間"], ["lobby", "大廳"], ["squad", "小隊"], ["duos", "雙人組"],

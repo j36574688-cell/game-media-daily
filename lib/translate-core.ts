@@ -91,7 +91,8 @@ export function postProcess(text: string, target: string, mode: TranslateMode, c
     out = out
       .replace(/\s+([，。！？；：、」』）])/g, "$1")
       .replace(/([「『（])\s+/g, "$1")
-      .replace(/([㐀-鿿，。！？；：、])\s+(?=[㐀-鿿「『（])/g, "$1");
+      .replace(/([㐀-鿿，。！？；：、])\s+(?=[㐀-鿿「『（])/g, "$1")
+      .replace(/([，。！？；：、])\s+/g, "$1");
     // 新聞標題不加句號
     if (mode === "news" && kind === "title") out = out.replace(/[。．.]\s*$/, "");
   }

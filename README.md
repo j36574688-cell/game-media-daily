@@ -1,6 +1,15 @@
-# Game Media Daily v3
+# Game Media Daily v4
 
 遊戲新聞聚合、RSS / Atom 監控、免費翻譯（遊戲術語保護）、Claim 語句風險提示與 Threads 草稿工作台。部署在 Vercel，不需要任何 API key。
+
+## v4 新功能
+
+- **熱度排序**：不同媒體報導同一件事會合併成一張卡片，顯示「🔥 N 家報導」，可展開看各家連結；新聞雷達可改用「熱度」排序，儀表板有「熱門事件」。合併時會降低常見字（遊戲名稱）的權重，避免把同一款遊戲的不同新聞誤併。
+- **NEW 標記**：上次之後才出現的新聞標示 NEW，側邊欄顯示數量；可「只看 NEW」、按「全部標為已讀」，點開原文的會自動變成已讀。
+- **中文 / 日文來源**：新增巴哈姆特 GNN、4Gamer.net、AUTOMATON；中文來源不送翻譯，日文來源自動翻成中文；新聞雷達可依語言篩選；支援 Big5 編碼的 Feed。
+- **Threads 一鍵發文**：草稿按「在 Threads 發這則」會打開 Threads 並帶入文字（官方 intent 網址）。
+- **貼文範本**：可存多組開頭 / 結尾（例如「🎮 今日遊戲快報」、「你怎麼看？留言聊聊」）；單篇每則都加，串文只加在第一則 / 最後一則。
+- **跨裝置同步**：收藏、追蹤清單、自訂術語、關注帳號、範本與篩選設定在電腦與手機之間同步（見下方「跨裝置同步設定」）。
 
 ## v3 修正重點
 
@@ -42,6 +51,8 @@ app/page.tsx                 介面（單頁）
 app/api/news/route.ts        抓 RSS / Atom、解析、去重
 app/api/translate/route.ts   免費 Google 翻譯 + 術語保護
 app/api/threads/route.ts     Threads 草稿 API（給外部工具用，前端直接用 lib/threads.ts）
+app/api/sync/route.ts        跨裝置同步（Upstash Redis）
+lib/gemini.ts                Gemini 翻譯（選填）
 lib/sources.ts               來源清單（新增 Feed 改這裡）
 lib/classify.ts              分類、遊戲 / 平台辨識、HTML 清理
 lib/dedupe.ts                去重
@@ -67,6 +78,15 @@ npm run dev
 GitHub repository 匯入 Vercel 即可，不需要設定環境變數。
 
 網站網址是公開的，理論上別人也能呼叫你的 `/api/translate`。這個工具用量小，通常不是問題；如果在意，可以研究 Vercel 的 Deployment Protection（部分選項需付費方案）。
+
+## 跨裝置同步設定（選填，免費）
+
+1. Vercel 專案 → **Storage** → **Create Database** → **Upstash for Redis**（Free 方案）。
+2. 建立後按 **Connect Project** 選這個專案；環境變數會自動加入，不需要複製任何 key。
+3. **Deployments** → 最新一筆 → **Redeploy**。
+4. 打開網站 → 設定 → 跨裝置同步 → 「建立同步碼」，在其他裝置貼上同一組同步碼。
+
+同步碼請像密碼一樣保管；伺服器只存同步碼的雜湊值。翻譯快取與已讀紀錄不同步（各裝置分開）。
 
 ## Gemini 翻譯（選填，讓三種口吻真的不同）
 

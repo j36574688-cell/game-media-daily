@@ -26,6 +26,7 @@ const STATE_KEY = "gmd-state";
 const TR_KEY = "gmd-translations-v4";
 const REVIEW_KEY = "gmd-reviewed-v4";
 const READ_KEY = "gmd-read-v1";
+const SYNC_KEY = "gmd-sync-v1"; // 只存在這台裝置：同步碼與本機最後修改時間，不會被同步出去
 const TR_CACHE_LIMIT = 600;
 const AUTO_TRANSLATE_LIMIT = 60; // 每次最多自動翻譯目前清單前 60 則，其他按需翻譯
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
@@ -87,6 +88,15 @@ function trKey(id: string, mode: TranslateMode, sig: string) {
   // 簽章只取長度＋前 40 字，避免 key 過長；術語有變就會產生新 key
   return id + "|" + mode + "|" + sig.length + ":" + sig.slice(0, 40);
 }
+/** 產生 24 字的隨機同步碼（例如 k3Fq-9xZp-...），用瀏覽器的安全亂數。 */
+function makeSyncCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = new Uint8Array(20);
+  crypto.getRandomValues(bytes);
+  const raw = Array.from(bytes, (b) => chars[b % chars.length]).join("");
+  return raw.match(/.{1,5}/g)!.join("-");
+}
+
 function articleLinks(n: Article): string[] {
   return [n.link, ...(n.related || []).map((r) => r.link)];
 }
@@ -162,6 +172,17 @@ export default function HomePage() {
   const [templates, setTemplates] = useState<PostTemplate[]>(DEFAULT_TEMPLATES);
   const [templateId, setTemplateId] = useState("");
   const [editingTemplates, setEditingTemplates] = useState(false);
+
+  // 跨裝置同步
+  const [syncAvailable, setSyncAvailable] = useState<boolean | null>(null);
+  const [syncCode, setSyncCode] = useState("");
+  const [syncInput, setSyncInput] = useState("");
+  const [syncStatus, setSyncStatus] = useState("");
+  const [showCode, setShowCode] = useState(false);
+  const localUpdatedAt = useRef(0);
+  const skipNextPush = useRef(false);
+  const firstPersist = useRef(true);
+  const syncReady = useRef(false);
   const [draftSettings, setDraftSettings] = useState<DraftSettings>(DEFAULT_DRAFT);
   const [copied, setCopied] = useState("");
 
@@ -211,6 +232,9 @@ export default function HomePage() {
   useEffect(() => {
     applyState(loadJSON<Record<string, unknown>>(STATE_KEY, {}));
     setTrCache(loadJSON<Record<string, TranslationEntry>>(TR_KEY, {}));
+    const sy = loadJSON<{ code?: unknown; localUpdatedAt?: unknown }>(SYNC_KEY, {});
+    if (typeof sy.code === "string") setSyncCode(sy.code);
+    localUpdatedAt.current = Number(sy.localUpdatedAt) || 0;
     const rd = loadJSON<{ seen?: unknown; unread?: unknown }>(READ_KEY, {});
     if (isStringArray(rd.seen)) setSeenLinks(rd.seen.slice(-4000));
     if (isStringArray(rd.unread)) setUnreadLinks(rd.unread.slice(-1500));
@@ -224,6 +248,90 @@ export default function HomePage() {
     [templates, templateId, langFilter, sortBy, onlyNew, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
   );
   useEffect(() => { if (hydrated) saveJSON(STATE_KEY, persisted); }, [hydrated, persisted]);
+
+  // ---------- 跨裝置同步
+  const syncCall = useCallback(async (payload: Record<string, unknown>) => {
+    const r = await fetch("/api/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d?.error || "同步失敗");
+    return d;
+  }, []);
+  const saveSyncMeta = useCallback((code: string) => saveJSON(SYNC_KEY, { code, localUpdatedAt: localUpdatedAt.current }), []);
+
+  useEffect(() => {
+    fetch("/api/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "status" }) })
+      .then((r) => r.json())
+      .then((d) => setSyncAvailable(Boolean(d?.available)))
+      .catch(() => setSyncAvailable(false));
+  }, []);
+
+  const persistedRef = useRef(persisted);
+  persistedRef.current = persisted;
+  const pushNow = useCallback(async (code: string) => {
+    try {
+      const d = await syncCall({ action: "push", code, data: persistedRef.current, updatedAt: localUpdatedAt.current || Date.now() });
+      setSyncStatus("已同步 " + taipeiTime(new Date(Number(d.updatedAt) || Date.now()).toISOString()));
+    } catch (e) {
+      setSyncStatus("同步失敗：" + (e instanceof Error ? e.message : "未知錯誤"));
+    }
+  }, [syncCall]);
+
+  // 開啟頁面（或剛設定同步碼）時：雲端比較新就載入雲端，否則把這台的設定上傳
+  useEffect(() => {
+    if (!hydrated || !syncAvailable || !syncCode) return;
+    let cancelled = false;
+    syncReady.current = false;
+    setSyncStatus("同步中…");
+    (async () => {
+      try {
+        const d = await syncCall({ action: "pull", code: syncCode });
+        if (cancelled) return;
+        if (d.data && Number(d.updatedAt) > localUpdatedAt.current) {
+          skipNextPush.current = true;
+          applyState(d.data as Record<string, unknown>);
+          localUpdatedAt.current = Number(d.updatedAt);
+          saveSyncMeta(syncCode);
+          setSyncStatus("已載入雲端設定 " + taipeiTime(new Date(Number(d.updatedAt)).toISOString()));
+        } else {
+          if (!localUpdatedAt.current) localUpdatedAt.current = Date.now();
+          saveSyncMeta(syncCode);
+          await pushNow(syncCode);
+        }
+      } catch (e) {
+        if (!cancelled) setSyncStatus("同步失敗：" + (e instanceof Error ? e.message : "未知錯誤"));
+      } finally {
+        if (!cancelled) syncReady.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hydrated, syncAvailable, syncCode, syncCall, applyState, pushNow, saveSyncMeta]);
+
+  // 設定有變動：記下修改時間，停 2.5 秒沒再變就上傳
+  useEffect(() => {
+    if (!hydrated) return;
+    if (firstPersist.current) { firstPersist.current = false; return; } // 剛從本機載入，不算修改
+    if (skipNextPush.current) { skipNextPush.current = false; return; } // 剛套用雲端資料，不用再傳回去
+    localUpdatedAt.current = Date.now();
+    saveSyncMeta(syncCode);
+    if (!syncAvailable || !syncCode || !syncReady.current) return;
+    const t = setTimeout(() => void pushNow(syncCode), 2500);
+    return () => clearTimeout(t);
+  }, [hydrated, persisted, syncAvailable, syncCode, pushNow, saveSyncMeta]);
+
+  function startSync(code: string) {
+    const c = code.trim();
+    if (!/^[A-Za-z0-9-]{16,64}$/.test(c)) { setSyncStatus("同步碼格式不正確：需 16 個字以上的英數字（可含 -）"); return; }
+    // 用別台的同步碼加入時，以雲端為準
+    localUpdatedAt.current = 0;
+    setSyncCode(c);
+    saveSyncMeta(c);
+    setSyncInput("");
+  }
+  function stopSync() {
+    setSyncCode("");
+    saveSyncMeta("");
+    setSyncStatus("已停止同步（雲端資料保留，用同一組同步碼可再加入）");
+  }
   useEffect(() => { if (hydrated) saveJSON(TR_KEY, trimRecord(trCache, TR_CACHE_LIMIT)); }, [hydrated, trCache]);
   useEffect(() => { if (hydrated) saveJSON(REVIEW_KEY, reviewed.slice(-1000)); }, [hydrated, reviewed]);
   useEffect(() => { if (hydrated) saveJSON(READ_KEY, { seen: seenLinks.slice(-4000), unread: unreadLinks.slice(-1500) }); }, [hydrated, seenLinks, unreadLinks]);
@@ -1075,6 +1183,54 @@ export default function HomePage() {
                   <button className="btn" onClick={importState}><Upload size={13} />匯入 JSON</button>
                 </div>
               </div>
+            </section>
+            <section className="panel" style={{ marginTop: 14 }}>
+              <div className="panelHeader"><div><span className="sectionKicker">SYNC</span><h2>跨裝置同步</h2><p className="smallMuted">收藏、追蹤清單、自訂術語、關注帳號、貼文範本與篩選設定，在電腦和手機之間自動同步（翻譯快取與已讀紀錄各裝置分開）。</p></div><span className={`badge ${syncCode && syncAvailable ? "good" : "neutral"}`}>{syncAvailable === null ? "檢查中" : !syncAvailable ? "未啟用" : syncCode ? "同步中" : "未設定"}</span></div>
+              {syncAvailable === false && (
+                <div className="syncSetup">
+                  <strong>需要先在 Vercel 建立免費的同步儲存空間（約 2 分鐘，只需要做一次）：</strong>
+                  <ol>
+                    <li>Vercel 專案 → 上方 <b>Storage</b> → <b>Create Database</b> → 選 <b>Upstash for Redis</b>（選 Free 方案）</li>
+                    <li>建立後按 <b>Connect Project</b>，選這個專案（環境變數會自動加好，不用複製任何 key）</li>
+                    <li>到 <b>Deployments</b> 對最新一筆按 <b>Redeploy</b>，回來重新整理這頁</li>
+                  </ol>
+                </div>
+              )}
+              {syncAvailable && !syncCode && (
+                <div className="syncSetup">
+                  <div className="settingRow">
+                    <div><strong>第一台裝置</strong><small>建立同步碼，之後在其他裝置輸入同一組同步碼即可。</small></div>
+                    <button className="btn primary" onClick={() => { startSync(makeSyncCode()); setShowCode(true); localUpdatedAt.current = Date.now(); }}>建立同步碼</button>
+                  </div>
+                  <div className="settingRow">
+                    <div><strong>其他裝置</strong><small>貼上第一台裝置的同步碼（會以雲端資料為準，覆蓋這台的設定）。</small></div>
+                    <div className="toolrow" style={{ marginTop: 0 }}>
+                      <input className="input" value={syncInput} onChange={(e) => setSyncInput(e.target.value)} placeholder="貼上同步碼" />
+                      <button className="btn" disabled={!syncInput.trim()} onClick={() => startSync(syncInput)}>加入</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {syncAvailable && syncCode && (
+                <div className="syncSetup">
+                  <div className="settingRow">
+                    <div><strong>同步碼</strong><small>在其他裝置的「設定 → 跨裝置同步 → 其他裝置」貼上。請像密碼一樣保管，拿到的人能看到並修改你的設定。</small></div>
+                    <div className="toolrow" style={{ marginTop: 0 }}>
+                      <code className="syncCode">{showCode ? syncCode : syncCode.slice(0, 5) + "-•••••-•••••-•••••"}</code>
+                      <button className="btn ghost" onClick={() => setShowCode((v) => !v)}>{showCode ? "隱藏" : "顯示"}</button>
+                      <button className="btn" onClick={() => void copy(syncCode, "sync")}><Clipboard size={13} />{copied === "sync" ? "已複製" : "複製"}</button>
+                    </div>
+                  </div>
+                  <div className="settingRow">
+                    <div><strong>狀態</strong><small>{syncStatus || "—"}</small></div>
+                    <div className="toolrow" style={{ marginTop: 0 }}>
+                      <button className="btn" onClick={() => void pushNow(syncCode)}><RefreshCw size={13} />立即同步</button>
+                      <button className="btn ghost" onClick={stopSync}>停止同步</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {syncStatus && !syncCode && <p className="smallMuted">{syncStatus}</p>}
             </section>
             <section className="panel" style={{ marginTop: 14 }}>
               <div className="panelHeader"><div><span className="sectionKicker">WATCH GAMES</span><h2>追蹤清單</h2><p className="smallMuted">「只看追蹤遊戲」會用這份清單過濾。</p></div><span className="badge neutral">{watch.length}</span></div>

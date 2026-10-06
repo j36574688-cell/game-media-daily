@@ -48,7 +48,7 @@ const PAGE_TITLE: Record<Section, string> = {
   dashboard: "今日遊戲新聞總監控", news: "新聞雷達", sources: "來源中心", accounts: "個人帳號中心",
   translate: "遊戲新聞翻譯工作台", audit: "Claim 語句風險提示", threads: "Threads 貼文工坊", rules: "規則與發布語氣參考", settings: "設定"
 };
-const MODE_LABEL: Record<TranslateMode, string> = { news: "新聞口吻", game: "遊戲術語", literal: "貼近原文" };
+const MODE_LABEL: Record<TranslateMode, string> = { news: "台灣新聞格式", game: "玩家用語", literal: "貼近原文" };
 
 // ---------------------------------------------------------------- 小工具
 
@@ -626,7 +626,7 @@ export default function HomePage() {
               <div className="toolrow">
                 <label className="checkLine"><input type="checkbox" checked={onlyWatched} onChange={(e) => setOnlyWatched(e.target.checked)} />只看追蹤遊戲</label>
                 <label className="checkLine"><input type="checkbox" checked={onlySaved} onChange={(e) => setOnlySaved(e.target.checked)} />只看收藏（{savedArticles.length}）</label>
-                <span className="controlLabel">翻譯</span>
+                <span className="controlLabel">翻譯用詞</span>
                 <select className="select modeSelect" value={translateMode} onChange={(e) => setTranslateMode(e.target.value as TranslateMode)}>{(Object.keys(MODE_LABEL) as TranslateMode[]).map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}</select>
                 <button className="btn ghost" disabled={!filtered.length} onClick={() => { setFailedIds([]); void translateItems(filtered.slice(0, 20), true); }}><Sparkles size={13} />重翻前 20 則</button>
               </div>
@@ -762,7 +762,7 @@ export default function HomePage() {
                 {engine?.gemini ? (
                   <p>目前使用 Gemini（{engine.model}）。三種口吻會真的改寫：<b>貼近原文</b>忠實直譯；<b>新聞口吻</b>像台灣新聞編輯的正式寫法；<b>遊戲術語</b>像在巴哈、PTT 跟玩家聊天。術語表與自訂術語會一起交給 Gemini 參考。Gemini 額度用完或失敗時，會自動改用免費 Google 翻譯並提示你。</p>
                 ) : (
-                  <p>目前使用免費 Google 翻譯：只能翻字，三種模式的差別只在用詞與格式（術語、「」引號、125 萬、玩家用語），很多標題三種模式會一樣。想讓口吻真的不同，請在 Vercel 設定 GEMINI_API_KEY（見 README）。</p>
+                  <p>免費 Google 翻譯只能翻字，三個選項調整的是<b>用詞與格式</b>，不會改寫語氣：<b>貼近原文</b>只保護遊戲名稱與你的自訂術語；<b>台灣新聞格式</b>套用術語表、「」引號、125 萬、標題不加句號；<b>玩家用語</b>再加上第 27 賽季、造型、排位等玩家說法。標題裡沒有這些元素時，三個選項的結果會一樣，這是正常的。</p>
                 )}
               </div>
               <span className={`badge ${engine?.gemini ? "good" : "neutral"}`}>{engine === null ? "檢查中" : engine.gemini ? "Gemini 已啟用" : "Google 免費翻譯"}</span>

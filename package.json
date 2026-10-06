@@ -1,6 +1,6 @@
 {
   "name": "game-media-daily",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "scripts": {"dev":"next dev","build":"next build","start":"next start"},
   "dependencies": {"lucide-react":"^0.545.0","next":"^16.0.0","react":"^19.2.1","react-dom":"^19.2.1"},

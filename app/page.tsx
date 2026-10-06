@@ -10,7 +10,7 @@ import { ALL_SOURCE_RECORDS, EVIDENCE_LABELS, GAME_FAMILIES, LANGUAGE_LEVELS, PE
 import { ARTICLE_KINDS, charLength, matchesGame, matchesPlatform } from "@/lib/classify";
 import { GLOSSARY } from "@/lib/glossary";
 import { buildThreadPosts, THREADS_LIMIT, type PostTemplate } from "@/lib/threads";
-import { heatLevel, heatScore, type Heat } from "@/lib/heat";
+import { BASE_SCORE, HEAT_RULES, heatLevel, heatScore, type Heat, type HeatWeights } from "@/lib/heat";
 import { assessClaim, CONTENT_GATES, DECISION_LABEL, detectSignals, type Decision } from "@/lib/audit";
 import { isStringArray, loadJSON, saveJSON, trimRecord } from "@/lib/storage";
 import type { Article, DraftSettings, SourceStat, TranslationEntry } from "@/lib/types";
@@ -134,6 +134,7 @@ export default function HomePage() {
   const [onlyWatched, setOnlyWatched] = useState(false);
   const [onlySaved, setOnlySaved] = useState(false);
   const [onlyNew, setOnlyNew] = useState(false);
+  const [heatWeights, setHeatWeights] = useState<HeatWeights>({});
   const [langFilter, setLangFilter] = useState<"all" | "zh" | "en" | "ja">("all");
   const [sortBy, setSortBy] = useState<"latest" | "heat">("latest");
   // NEW 標記：seenLinks = 看過的連結；unreadLinks = 上次「全部已讀」之後才出現的連結
@@ -215,6 +216,11 @@ export default function HomePage() {
     if (x.translateMode === "news" || x.translateMode === "game" || x.translateMode === "literal") setTranslateMode(x.translateMode);
     if (typeof x.autoRefresh === "boolean") setAutoRefresh(x.autoRefresh);
     if (x.sortBy === "latest" || x.sortBy === "heat") setSortBy(x.sortBy);
+    if (x.heatWeights && typeof x.heatWeights === "object") {
+      const hw: HeatWeights = {};
+      for (const [k, v] of Object.entries(x.heatWeights as Record<string, unknown>)) if (v === false || (typeof v === "number" && Number.isFinite(v))) hw[k] = v as number | false;
+      setHeatWeights(hw);
+    }
     if (Array.isArray(x.templates)) setTemplates((x.templates as PostTemplate[]).filter((t) => t && typeof t.id === "string" && typeof t.name === "string").map((t) => ({ id: t.id, name: t.name, opening: String(t.opening || ""), closing: String(t.closing || "") })).slice(0, 20));
     if (typeof x.templateId === "string") setTemplateId(x.templateId);
     if (typeof x.onlyNew === "boolean") setOnlyNew(x.onlyNew);
@@ -245,8 +251,8 @@ export default function HomePage() {
   }, [applyState]);
 
   const persisted = useMemo(
-    () => ({ version: 3, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings, sortBy, onlyNew, langFilter, templates, templateId }),
-    [templates, templateId, langFilter, sortBy, onlyNew, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
+    () => ({ version: 3, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings, sortBy, onlyNew, langFilter, templates, templateId, heatWeights }),
+    [heatWeights, templates, templateId, langFilter, sortBy, onlyNew, watch, query, feedQuery, contentType, gameFamily, platforms, sourceFilter, onlyWatched, onlySaved, onlyAccounts, onlyFollowed, sourceSearch, followed, savedArticles, customTerms, myView, translateMode, autoRefresh, draftSettings]
   );
   useEffect(() => { if (hydrated) saveJSON(STATE_KEY, persisted); }, [hydrated, persisted]);
 
@@ -421,6 +427,7 @@ export default function HomePage() {
     setUnreadLinks((u) => u.filter((l) => !ls.has(l)));
   }
 
+  const savedIdSet = useMemo(() => new Set(savedArticles.map((a) => a.id)), [savedArticles]);
   // 熱度分數（含追蹤遊戲加成）；每分鐘重算一次新鮮度
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setClock(Date.now()), 60000); return () => clearInterval(t); }, []);
@@ -429,12 +436,12 @@ export default function HomePage() {
     return (n: Article) => {
       let h = cache.get(n.id);
       if (!h) {
-        h = heatScore(n, { now: clock, watched: watch.some((w) => matchesFamily(n, w)) });
+        h = heatScore(n, { now: clock, watched: watch.some((w) => matchesFamily(n, w)), saved: savedIdSet.has(n.id) }, heatWeights);
         cache.set(n.id, h);
       }
       return h;
     };
-  }, [clock, watch]);
+  }, [clock, watch, savedIdSet, heatWeights]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -1204,6 +1211,29 @@ export default function HomePage() {
                   <button className="btn" onClick={importState}><Upload size={13} />匯入 JSON</button>
                 </div>
               </div>
+            </section>
+            <section className="panel" style={{ marginTop: 14 }}>
+              <div className="panelHeader">
+                <div><span className="sectionKicker">HEAT BONUS</span><h2>熱度加成設定</h2><p className="smallMuted">基礎 {BASE_SCORE} 分，再加上符合的加成。取消勾選 = 關閉這項；改數字 = 改分數（負數代表扣分）。改完熱度排序會立即更新。</p></div>
+                <button className="btn ghost" disabled={!Object.keys(heatWeights).length} onClick={() => setHeatWeights({})}>全部恢復預設</button>
+              </div>
+              {(["傳播", "內容", "時效", "個人", "扣分"] as const).map((g) => (
+                <div className="heatGroup" key={g}>
+                  <div className="heatGroupTitle">{g}</div>
+                  {HEAT_RULES.filter((r) => r.group === g).map((r) => {
+                    const w = heatWeights[r.id];
+                    const on = w !== false;
+                    const value = typeof w === "number" ? w : r.weight;
+                    return (
+                      <div className={on ? "heatRule" : "heatRule off"} key={r.id}>
+                        <label className="checkLine"><input type="checkbox" checked={on} onChange={(e) => setHeatWeights((p) => { const n = { ...p }; if (e.target.checked) delete n[r.id]; else n[r.id] = false; return n; })} /><b>{r.name}</b></label>
+                        <span className="smallMuted">{r.hint}{r.id === "coverage" || r.id === "crossLang" ? "（分數為每單位）" : ""}</span>
+                        <input className="input heatInput" type="number" step={1} value={value} disabled={!on} onChange={(e) => { const v = Number(e.target.value); setHeatWeights((p) => { const n = { ...p }; if (!Number.isFinite(v) || v === r.weight) delete n[r.id]; else n[r.id] = v; return n; }); }} />
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </section>
             <section className="panel" style={{ marginTop: 14 }}>
               <div className="panelHeader"><div><span className="sectionKicker">SYNC</span><h2>跨裝置同步</h2><p className="smallMuted">收藏、追蹤清單、自訂術語、關注帳號、貼文範本與篩選設定，在電腦和手機之間自動同步（翻譯快取與已讀紀錄各裝置分開）。</p></div><span className={`badge ${syncCode && syncAvailable ? "good" : "neutral"}`}>{syncAvailable === null ? "檢查中" : !syncAvailable ? "未啟用" : syncCode ? "同步中" : "未設定"}</span></div>
